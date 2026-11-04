@@ -1,0 +1,21 @@
+{
+  "name": "Absen Digital Siswa",
+  "short_name": "Absensi",
+  "description": "Sistem Presensi Siswa Real-time berbasis QR",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f8f9fa",
+  "theme_color": "#0d6efd",
+  "icons": [
+    {
+      "src": "absensiswa.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "absensiswa.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
