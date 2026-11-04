@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="id" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0d6efd" id="meta-theme-color">
+  <title>Absen Digital Siswa & Guru</title>
+  
+  <link rel="manifest" href="manifest.json">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    :root { --app-primary: #0d6efd; --app-bg: #f8f9fa; }
+    body { background-color: var(--app-bg); font-family: -apple-system, sans-serif; padding-top: 65px; padding-bottom: 80px; }
+    
+    .bg-primary-custom { background-color: var(--app-primary) !important; color: white; }
+    .text-primary-custom { color: var(--app-primary) !important; }
+    .btn-primary-custom { background-color: var(--app-primary); color: white; border: none; }
+    .btn-primary-custom:hover { filter: brightness(0.9); color: white; }
+
+    .top-navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 1030; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 10px 15px; display: flex; align-items: center; }
+    .app-logo { width: 45px; height: 45px; object-fit: contain; border-radius: 8px; background: #fff; padding: 2px; margin-right: 12px; }
+    
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 1030; background: #fff; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-around; padding: 10px 0 15px 0; border-top-left-radius: 15px; border-top-right-radius: 15px; }
+    [data-bs-theme="dark"] .bottom-nav { background: #212529; box-shadow: 0 -2px 10px rgba(0,0,0,0.5); }
+    .nav-item { text-align: center; color: #6c757d; cursor: pointer; flex: 1; font-size: 0.75rem; text-decoration: none; padding: 0 2px; }
+    .nav-item i { font-size: 1.3rem; display: block; margin-bottom: 2px; }
+    .nav-item.active { color: var(--app-primary); font-weight: bold; }
+
+    #reader { width: 100%; border-radius: 10px; overflow: hidden; margin-top: 15px; }
+    .hidden { display: none !important; }
+    .kamuflase-btn { cursor: pointer; opacity: 0.7; font-size: 0.75rem; user-select: none; }
+    
+    .admin-section { display: none; animation: fadeIn 0.3s; }
+    .admin-section.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .anti-joki-text { font-size: 2.2rem; text-transform: uppercase; line-height: 1.1; word-wrap: break-word; }
+    .laporan-box { max-height: 140px; overflow-y: auto; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; padding: 8px; font-size: 0.8rem; }
+    [data-bs-theme="dark"] .laporan-box { background: #212529; border-color: #495057; }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR PUBLIK -->
+  <div class="top-navbar bg-primary-custom" id="nav-publik">
+    <img src="absensiswa.png" alt="Logo" class="app-logo" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3233/3233483.png'">
+    <div>
+      <h1 class="h6 mb-0 fw-bold" id="ui-pub-sekolah">Portal Absen Siswa</h1>
+      <p class="mb-0" style="font-size: 0.75rem;" id="ui-pub-wali">Wali Kelas: -</p>
+    </div>
+  </div>
+
+  <!-- NAVBAR ADMIN -->
+  <div class="top-navbar bg-dark text-white hidden" id="nav-admin">
+    <img src="absensiswa.png" alt="Logo" class="app-logo" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3233/3233483.png'">
+    <div>
+      <h1 class="h6 mb-0 fw-bold">Dashboard Guru</h1>
+      <p class="mb-0 text-warning" style="font-size: 0.75rem;">Mode Admin Terverifikasi</p>
+    </div>
+  </div>
+
+  <div class="container mt-3">
+
+    <!-- ================= VIEW: SISWA ================= -->
+    <div id="view-siswa">
+      
+      <!-- FORM IDENTITAS -->
+      <div class="card shadow-sm border-0 mb-4" id="card-identitas">
+        <div class="card-body">
+          <h5 class="fw-bold text-primary-custom mb-3"><i class="bi bi-search"></i> Cari Data Siswa</h5>
+          <p class="small text-muted">Ketik dan pilih nama Anda dari daftar data kelas.</p>
+          
+          <div class="mb-3">
+            <input type="text" class="form-control" list="datalistSiswa" id="inpCariSiswa" placeholder="Ketik nama atau NIS Anda..." autocomplete="off">
+            <datalist id="datalistSiswa"></datalist>
+          </div>
+          <button class="btn btn-primary-custom w-100 rounded-pill fw-bold" onclick="simpanIdentitasSiswa()">Pilih & Lanjutkan</button>
+        </div>
+      </div>
+
+      <!-- AREA SCAN -->
+      <div class="card shadow-sm border-0 mb-3 hidden" id="card-scan">
+        <div class="card-body text-center">
+          <h5 class="fw-bold mb-1">Halo, <span id="ui-nama-siswa" class="text-primary-custom"></span>!</h5>
+          <p class="small text-muted mb-3">NIS: <span id="ui-nis-siswa"></span> <br><a href="#" class="text-danger text-decoration-none" onclick="resetIdentitas()">Ganti Identitas</a></p>
+          
+          <div class="row g-2 mb-3">
+            <div class="col-4">
+              <div class="p-2 border rounded bg-light">
+                <span class="d-block text-muted" style="font-size: 10px;">TOTAL SISWA</span>
+                <span class="fw-bold fs-6" id="stat-total-siswa">0</span>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="p-2 border rounded bg-success-subtle">
+                <span class="d-block text-success" style="font-size: 10px;">HADIR</span>
+                <span class="fw-bold fs-6 text-success" id="stat-hadir-hariini">0</span>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="p-2 border rounded bg-danger-subtle">
+                <span class="d-block text-danger" style="font-size: 10px;">BELUM</span>
+                <span class="fw-bold fs-6 text-danger" id="stat-belum-hariini">0</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="alert alert-warning small py-2 mb-3">
+            <i class="bi bi-clock-history"></i> Jam Absen: <strong id="ui-jam-absen">00:00 - 00:00</strong>
+          </div>
+
+          <button class="btn btn-primary-custom w-100 rounded-pill py-3 fw-bold shadow" id="btnMulaiScan" onclick="mulaiScanSiswa()">
+            <i class="bi bi-qr-code-scan fs-4 d-block mb-1"></i> SCAN QR GURU
+          </button>
+          
+          <div id="reader-container" class="hidden text-center mt-3">
+            <div id="reader"></div>
+            <button class="btn btn-outline-danger mt-3 w-100 rounded-pill" onclick="hentikanScan()"><i class="bi bi-stop-circle"></i> Batal Scan</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- DASBOR LAPORAN SISWA -->
+      <div id="dashboard-siswa-post-scan" class="hidden">
+        <div class="alert alert-success small mb-3 text-center border-0 shadow-sm">
+          <i class="bi bi-check-circle-fill"></i> Absensi hari ini telah tercatat di Server!
+        </div>
+        
+        <div class="card shadow-sm border-0 mb-3">
+          <div class="card-body">
+            <h6 class="fw-bold text-primary-custom mb-3"><i class="bi bi-person-lines-fill"></i> Catatan Disiplinku</h6>
+            <div class="d-flex justify-content-between text-center small fw-bold">
+              <div><span class="d-block text-success fs-5" id="ui-my-hadir">0</span> Hadir</div>
+              <div><span class="d-block text-warning fs-5" id="ui-my-izin">0</span> Izin</div>
+              <div><span class="d-block text-info fs-5" id="ui-my-sakit">0</span> Sakit</div>
+              <div><span class="d-block text-danger fs-5" id="ui-my-alpa">0</span> Alpa</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-3">
+          <div class="card-body">
+            <h6 class="fw-bold text-primary-custom mb-2"><i class="bi bi-people-fill"></i> Status Kelas Hari Ini</h6>
+            <p class="small fw-bold text-success mb-1 mt-2">Telah Hadir (<span id="count-kelas-hadir">0</span>):</p>
+            <div class="laporan-box text-success" id="ui-kelas-hadir">-</div>
+            <p class="small fw-bold text-danger mb-1 mt-2">Belum Hadir (<span id="count-kelas-belum">0</span>):</p>
+            <div class="laporan-box text-danger" id="ui-kelas-belum">-</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-center mt-4 mb-5">
+        <div class="kamuflase-btn text-muted" onclick="showLoginAdmin()">
+          Powered by Ari GPM | v2.3.0.MASTER 🔒
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ================= VIEW: ADMIN (DASBOR GURU) ================= -->
+    <div id="view-admin" class="hidden">
+      
+      <!-- TAB ADMIN 1: MASTER SISWA -->
+      <div id="tab-master-siswa" class="admin-section active">
+        <h5 class="fw-bold mb-3">Master Data Siswa</h5>
+        <div class="card shadow-sm border-0 mb-3">
+          <div class="card-body">
+            <form onsubmit="simpanSiswaMaster(event)">
+              <div class="row g-2">
+                <div class="col-4"><input type="text" class="form-control form-control-sm" id="inpMasterNIS" placeholder="NIS" required></div>
+                <div class="col-8"><input type="text" class="form-control form-control-sm" id="inpMasterNama" placeholder="Nama Lengkap" required></div>
+                <div class="col-12 mt-2"><button type="submit" class="btn btn-sm btn-success w-100"><i class="bi bi-plus-circle"></i> Tambah Siswa</button></div>
+              </div>
+            </form>
+          </div>
+        </div>
+        <div class="card shadow-sm border-0">
+          <ul class="list-group list-group-flush" id="list-master-siswa"></ul>
+        </div>
+      </div>
+
+      <!-- TAB ADMIN 2: KODE QR GURU -->
+      <div id="tab-qr-guru" class="admin-section">
+        <div class="card shadow-sm border-0 text-center">
+          <div class="card-body py-4">
+            <h5 class="fw-bold mb-1 text-primary-custom">KODE QR MASTER</h5>
+            <p class="text-muted small mb-4">Tunjukkan QR ini untuk di-scan oleh siswa.</p>
+            <div id="qrMasterCanvas" class="d-flex justify-content-center mb-4"></div>
+            <h4 class="text-dark fw-bold mb-0" id="qr-tanggal-hari-ini"></h4>
+            
+            <hr class="mt-4 mb-3">
+            <button class="btn btn-success w-100 rounded-pill fw-bold" onclick="bagikanLinkWa()"><i class="bi bi-whatsapp"></i> Share Link Absen (WA)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB ADMIN 3: ABSEN MANUAL & RIWAYAT -->
+      <div id="tab-riwayat-absen" class="admin-section">
+        <ul class="nav nav-pills nav-fill mb-3" role="tablist">
+          <li class="nav-item-tab" role="presentation"><button class="nav-link active btn-sm" data-bs-toggle="pill" data-bs-target="#subtab-manual" type="button">Manual</button></li>
+          <li class="nav-item-tab" role="presentation"><button class="nav-link btn-sm" data-bs-toggle="pill" data-bs-target="#subtab-riwayat" type="button">Riwayat</button></li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane fade show active" id="subtab-manual">
+            <div class="card shadow-sm border-0">
+              <div class="card-body">
+                <form onsubmit="submitAbsenManual(event)">
+                  <div class="mb-3">
+                    <label class="form-label small fw-bold">Pilih Siswa</label>
+                    <select class="form-select form-select-sm" id="inpManualSiswa" required></select>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label small fw-bold">Status Kehadiran</label>
+                    <select class="form-select form-select-sm" id="inpManualStatus">
+                      <option value="Hadir">Hadir</option>
+                      <option value="Izin">Izin</option>
+                      <option value="Sakit">Sakit</option>
+                      <option value="Alpa">Alpa</option>
+                    </select>
+                  </div>
+                  <button type="submit" class="btn btn-primary-custom w-100 btn-sm"><i class="bi bi-save"></i> Simpan Absen</button>
+                </form>
+              </div>
+            </div>
+          </div>
+          <div class="tab-pane fade" id="subtab-riwayat">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="fw-bold mb-0">Riwayat Server</h6>
+              <button class="btn btn-sm btn-outline-primary" onclick="tarikDataServer()"><i class="bi bi-arrow-repeat"></i> Muat Ulang</button>
+            </div>
+            <div class="card shadow-sm border-0">
+              <ul class="list-group list-group-flush" id="list-riwayat"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB ADMIN 4: AUTO LAPORAN DISIPLIN -->
+      <div id="tab-laporan-disiplin" class="admin-section">
+        <h5 class="fw-bold mb-3">Laporan Disiplin Kelas</h5>
+        <div class="card shadow-sm border-0 mb-3">
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-striped table-hover mb-0 text-nowrap">
+                <thead class="table-dark">
+                  <tr>
+                    <th class="small">Nama Siswa</th>
+                    <th class="text-center small">H</th>
+                    <th class="text-center small">I</th>
+                    <th class="text-center small">S</th>
+                    <th class="text-center small">A</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-laporan-disiplin"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-success w-100 rounded-pill fw-bold shadow-sm" onclick="copyLaporanDisiplinWa()"><i class="bi bi-whatsapp"></i> Salin Rekap untuk WA</button>
+      </div>
+
+      <!-- TAB ADMIN 5: PENGATURAN -->
+      <div id="tab-pengaturan" class="admin-section">
+        <h5 class="fw-bold mb-3">Pengaturan Dasbor</h5>
+        
+        <div class="card shadow-sm border-0 mb-3">
+          <div class="card-body">
+            <label class="form-label small fw-bold text-primary border-bottom border-primary w-100 pb-1 mb-2"><i class="bi bi-building"></i> Identitas Sekolah & Wali Kelas</label>
+            <div class="mb-2"><label class="form-label small">Nama Sekolah</label><input type="text" class="form-control form-control-sm" id="setNamaSekolah"></div>
+            <div class="mb-2"><label class="form-label small">Wali Kelas</label><input type="text" class="form-control form-control-sm" id="setNamaWali"></div>
+            <div class="mb-2"><label class="form-label small">Tahun Ajaran</label><input type="text" class="form-control form-control-sm" id="setTahunAjaran"></div>
+            <!-- INPUT EMAIL ADMIN TERDAFTAR (BARU) -->
+            <div class="mb-1"><label class="form-label small text-danger fw-bold">Email Admin / Guru (Untuk Lupa PIN)</label><input type="email" class="form-control form-control-sm" id="setAdminEmail" placeholder="contoh: guru@gmail.com"></div>
+          </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-3">
+          <div class="card-body">
+            <label class="form-label small fw-bold text-danger border-bottom border-danger w-100 pb-1 mb-2"><i class="bi bi-clock"></i> Batas Waktu Scan</label>
+            <div class="row g-2 mb-3">
+              <div class="col-6"><label class="form-label small">Jam Buka</label><input type="time" class="form-control form-control-sm" id="setJamMulai"></div>
+              <div class="col-6"><label class="form-label small">Jam Tutup</label><input type="time" class="form-control form-control-sm" id="setJamSelesai"></div>
+            </div>
+            <button class="btn btn-success btn-sm w-100 mb-2" onclick="simpanPengaturanUmum()">Simpan Pengaturan</button>
+          </div>
+        </div>
+
+        <button class="btn btn-danger w-100 rounded-pill fw-bold" onclick="keluarAdmin()"><i class="bi bi-box-arrow-left"></i> KELUAR MODE GURU</button>
+      </div>
+
+      <!-- BOTTOM NAV ADMIN -->
+      <div class="bottom-nav">
+        <div class="nav-item active" onclick="switchAdminTab('master-siswa', this)"><i class="bi bi-people"></i><span>Siswa</span></div>
+        <div class="nav-item" onclick="switchAdminTab('qr-guru', this)"><i class="bi bi-qr-code"></i><span>QR Master</span></div>
+        <div class="nav-item" onclick="switchAdminTab('riwayat-absen', this)"><i class="bi bi-journal-check"></i><span>Riwayat</span></div>
+        <div class="nav-item" onclick="switchAdminTab('laporan-disiplin', this)"><i class="bi bi-bar-chart-line"></i><span>Laporan</span></div>
+        <div class="nav-item" onclick="switchAdminTab('pengaturan', this)"><i class="bi bi-gear"></i><span>Setelan</span></div>
+      </div>
+
+    </div>
+
+  </div> <!-- End Container -->
+
+
+  <!-- ================= MODALS & POP-UPS ================= -->
+  <!-- Modal Anti-Joki -->
+  <div class="modal fade" id="modalAntiJoki" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down m-0 h-100">
+      <div class="modal-content bg-success text-white text-center h-100 rounded-0 border-0">
+        <div class="modal-body d-flex flex-column justify-content-center align-items-center p-4">
+          <i class="bi bi-check-circle-fill text-white shadow-sm rounded-circle" style="font-size: 5rem;"></i>
+          <h3 class="mt-4 mb-0 opacity-75">ABSEN BERHASIL</h3>
+          <h1 class="fw-bold mt-2 mb-0 anti-joki-text" id="jokiNamaSiswa">NAMA</h1>
+          <h4 class="mt-2" id="jokiNisSiswa">NIS</h4>
+          <div class="mt-4 border border-2 border-white rounded p-2 px-4 shadow-sm"><span id="jokiWaktuLengkap" class="fw-bold h5"></span></div>
+          <p class="mt-5 small opacity-75 mb-1"><i class="bi bi-exclamation-triangle-fill"></i> Tunjukkan Layar Ini ke Guru</p>
+          <button type="button" class="btn btn-light btn-lg w-100 mt-2 rounded-pill fw-bold text-success shadow-lg" data-bs-dismiss="modal" onclick="showDashboardSiswa()">Tutup & Lihat Laporan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Login Admin -->
+  <div class="modal fade" id="modalLogin" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content border-0">
+        <div class="modal-body p-4 text-center">
+          <i class="bi bi-shield-lock-fill display-4 text-dark mb-3"></i>
+          <h5 class="fw-bold mb-1">Otorisasi Guru</h5>
+          <input type="password" class="form-control text-center mb-3" id="inpPinLogin" placeholder="Masukkan PIN" maxlength="6" inputmode="numeric">
+          <button class="btn btn-dark w-100 rounded-pill mb-2" onclick="prosesLogin()">Masuk Dashboard</button>
+          <a href="#" class="small text-decoration-none text-muted" onclick="showLupaPin()">Lupa PIN? (Kirim OTP Email)</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Lupa PIN (Validasi Email Pengaturan) -->
+  <div class="modal fade" id="modalLupaPin" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0">
+        <div class="modal-body p-4 text-center">
+          <h5 class="fw-bold mb-2">Reset PIN Guru</h5>
+          <p class="small text-muted">Masukkan email yang terdaftar di menu Pengaturan untuk menerima kode OTP.</p>
+          
+          <div id="step-kirim-otp">
+            <input type="email" class="form-control mb-2 text-center" id="inpEmailReset" placeholder="Ketik Email Terdaftar...">
+            <button class="btn btn-primary-custom w-100 rounded-pill" onclick="kirimOtp()" id="btnKirimOtp">Kirim OTP ke Email</button>
+          </div>
+
+          <div id="step-verifikasi-otp" class="hidden text-start mt-3">
+            <label class="form-label small fw-bold">Kode OTP (4 Angka)</label>
+            <input type="text" class="form-control mb-2" id="inpOtp" placeholder="Masukkan OTP">
+            <label class="form-label small fw-bold">PIN Baru</label>
+            <input type="password" class="form-control mb-3" id="inpPinReset" placeholder="PIN Baru (Min 4 digit)">
+            <button class="btn btn-success w-100 rounded-pill" onclick="verifikasiOtp()">Simpan PIN Baru</button>
+          </div>
+          <button class="btn btn-light btn-sm w-100 mt-3" data-bs-dismiss="modal">Batal</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/YOUR_GAS_DEPLOYMENT_ID/exec"; 
+
+    const getTodayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+
+    let studentSession = JSON.parse(localStorage.getItem('prod_siswa_profile')) || { nis: '', nama: '', lastAbsenDate: '' };
+    let adminPin = localStorage.getItem('prod_admin_pin') || '123456';
+    let generatedOtp = '';
+    
+    let APP_DATA = {
+      settings: { 
+        namaSekolah: "SD Negeri 1 Karanganyar", 
+        namaWali: "Budi Santoso, S.Pd.", 
+        tahunAjaran: "Kelas 6A - 2026/2027", 
+        adminEmail: "guru.penanggungjawab@gmail.com", 
+        jamMulai: "06:00", 
+        jamSelesai: "15:00" 
+      },
+      masterSiswa: [],
+      records: []
+    };
+
+    let html5QrcodeScanner = null; let isProcessingScan = false;
+    const mdLogin = new bootstrap.Modal(document.getElementById('modalLogin'));
+    const mdLupa = new bootstrap.Modal(document.getElementById('modalLupaPin'));
+    const mdAntiJoki = new bootstrap.Modal(document.getElementById('modalAntiJoki'));
+
+    window.onload = () => {
+      tarikDataServerAwal();
+      registerServiceWorker();
+    };
+
+    function registerServiceWorker() {
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').catch(err => console.error(err));
+        });
+      }
+    }
+
+    async function tarikDataServerAwal() {
+      try {
+        const res = await fetch(API_URL + "?action=get_data");
+        const json = await res.json();
+        if(json.status === "success") {
+          APP_DATA.masterSiswa = json.masterSiswa || [];
+          APP_DATA.records = json.records || [];
+          if(json.settings) APP_DATA.settings = Object.assign(APP_DATA.settings, json.settings);
+        }
+      } catch(e) {
+        let local = localStorage.getItem('prod_admin_data');
+        if(local) APP_DATA = JSON.parse(local);
+      }
+      
+      renderDatalistSiswa(); checkStudentProfile(); applySettings();
+      generateQrMaster(); renderMasterSiswa(); renderRiwayatAbsen(); renderLaporanDisiplin();
+    }
+
+    function checkStudentProfile() {
+      document.getElementById('ui-jam-absen').innerText = `${APP_DATA.settings.jamMulai} WIB - ${APP_DATA.settings.jamSelesai} WIB`;
+      updateStatistikHarianSiswa();
+
+      if(studentSession.nis && studentSession.nama) {
+        document.getElementById('card-identitas').classList.add('hidden');
+        document.getElementById('card-scan').classList.remove('hidden');
+        document.getElementById('ui-nama-siswa').innerText = studentSession.nama;
+        document.getElementById('ui-nis-siswa').innerText = studentSession.nis;
+
+        if(studentSession.lastAbsenDate === getTodayStr()) {
+          document.getElementById('btnMulaiScan').classList.add('hidden');
+          showDashboardSiswa(); 
+        } else {
+          document.getElementById('btnMulaiScan').classList.remove('hidden');
+          document.getElementById('dashboard-siswa-post-scan').classList.add('hidden');
+        }
+      } else {
+        document.getElementById('card-identitas').classList.remove('hidden');
+        document.getElementById('card-scan').classList.add('hidden');
+        document.getElementById('dashboard-siswa-post-scan').classList.add('hidden');
+      }
+    }
+
+    function updateStatistikHarianSiswa() {
+      const totalSiswa = APP_DATA.masterSiswa.length;
+      const todayRecs = APP_DATA.records.filter(r => r.date === getTodayStr() && r.status === 'Hadir');
+      document.getElementById('stat-total-siswa').innerText = totalSiswa;
+      document.getElementById('stat-hadir-hariini').innerText = todayRecs.length;
+      document.getElementById('stat-belum-hariini').innerText = Math.max(0, totalSiswa - todayRecs.length);
+    }
+
+    function renderDatalistSiswa() {
+      const datalist = document.getElementById('datalistSiswa'); datalist.innerHTML = "";
+      APP_DATA.masterSiswa.forEach(s => { datalist.innerHTML += `<option value="${s.nis} - ${s.nama}">`; });
+    }
+
+    function simpanIdentitasSiswa() {
+      const inputVal = document.getElementById('inpCariSiswa').value.trim();
+      if(!inputVal) return alert("Ketik atau pilih nama Anda!");
+      const targetNis = inputVal.split(' - ')[0].trim();
+      let match = APP_DATA.masterSiswa.find(s => s.nis === targetNis) || APP_DATA.masterSiswa.find(s => s.nama.toLowerCase() === inputVal.toLowerCase());
+      if(!match) return alert("⚠️ Data Anda tidak ditemukan di sistem server.");
+      
+      studentSession.nis = match.nis; studentSession.nama = match.nama;
+      localStorage.setItem('prod_siswa_profile', JSON.stringify(studentSession)); checkStudentProfile();
+    }
+
+    function resetIdentitas() {
+      if(confirm("Yakin menghapus profil ini dari HP?")) {
+        studentSession = { nis: '', nama: '', lastAbsenDate: '' };
+        localStorage.setItem('prod_siswa_profile', JSON.stringify(studentSession)); checkStudentProfile();
+      }
+    }
+
+    function isTimeValid() {
+      const now = new Date(); const currentJam = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
+      return currentJam >= APP_DATA.settings.jamMulai && currentJam <= APP_DATA.settings.jamSelesai;
+    }
+
+    function mulaiScanSiswa() {
+      if(!isTimeValid()) return alert(`DITOLAK!\nBatas waktu absen hari ini adalah jam ${APP_DATA.settings.jamMulai} - ${APP_DATA.settings.jamSelesai} WIB.`);
+      document.getElementById('btnMulaiScan').classList.add('hidden');
+      document.getElementById('reader-container').classList.remove('hidden'); isProcessingScan = false;
+      if(!html5QrcodeScanner) html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+      
+      html5QrcodeScanner.render((scannedText) => {
+        if(isProcessingScan) return; isProcessingScan = true;
+        if(scannedText === "MASTER_QR_" + getTodayStr()) {
+          hentikanScan(); kirimAbsenKeServer(studentSession.nis, studentSession.nama, 'Hadir', 'Scan Mandiri');
+        } else { isProcessingScan = false; hentikanScan(); alert("⚠️ QR Code Ditolak."); }
+      }, (err) => {});
+    }
+
+    function hentikanScan() {
+      if(html5QrcodeScanner) html5QrcodeScanner.clear();
+      document.getElementById('reader-container').classList.add('hidden');
+      document.getElementById('btnMulaiScan').classList.remove('hidden');
+    }
+
+    async function kirimAbsenKeServer(nis, nama, status, ket) {
+      document.getElementById('btnMulaiScan').innerText = "Mengirim ke Server...";
+      const payload = { action: "submit_absen", nis, nama, status, ket, date: getTodayStr(), time: new Date().toLocaleTimeString('id-ID') };
+      try { await fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); } catch(e){}
+
+      APP_DATA.records.push({ id: new Date().getTime(), date: getTodayStr(), time: new Date().toLocaleTimeString('id-ID'), nis, nama, status, ket });
+      updateStatistikHarianSiswa(); renderRiwayatAbsen(); renderLaporanDisiplin();
+
+      studentSession.lastAbsenDate = getTodayStr(); localStorage.setItem('prod_siswa_profile', JSON.stringify(studentSession));
+      
+      document.getElementById('jokiNamaSiswa').innerText = nama;
+      document.getElementById('jokiNisSiswa').innerText = `NIS: ${nis}`;
+      document.getElementById('jokiWaktuLengkap').innerText = `${getTodayStr()} | ${new Date().toLocaleTimeString('id-ID')} WIB`;
+      mdAntiJoki.show();
+      document.getElementById('btnMulaiScan').innerHTML = `<i class="bi bi-qr-code-scan fs-4 d-block mb-1"></i> SCAN QR GURU`;
+    }
+
+    function showDashboardSiswa() {
+      document.getElementById('dashboard-siswa-post-scan').classList.remove('hidden');
+      let myRecs = APP_DATA.records.filter(r => r.nis === studentSession.nis);
+      document.getElementById('ui-my-hadir').innerText = myRecs.filter(r => r.status === 'Hadir').length;
+      document.getElementById('ui-my-izin').innerText = myRecs.filter(r => r.status === 'Izin').length;
+      document.getElementById('ui-my-sakit').innerText = myRecs.filter(r => r.status === 'Sakit').length;
+      document.getElementById('ui-my-alpa').innerText = myRecs.filter(r => r.status === 'Alpa').length;
+
+      let todayRecs = APP_DATA.records.filter(r => r.date === getTodayStr());
+      let hadirList = todayRecs.filter(r => r.status === 'Hadir').map(r => r.nama);
+      let allNames = APP_DATA.masterSiswa.map(s => s.nama);
+      let belumList = allNames.filter(n => !hadirList.includes(n));
+
+      document.getElementById('count-kelas-hadir').innerText = hadirList.length;
+      document.getElementById('ui-kelas-hadir').innerHTML = hadirList.length ? hadirList.join('<br>') : '-';
+      document.getElementById('count-kelas-belum').innerText = belumList.length;
+      document.getElementById('ui-kelas-belum').innerHTML = belumList.length ? belumList.join('<br>') : '-';
+    }
+
+    function showLoginAdmin() { document.getElementById('inpPinLogin').value = ''; mdLogin.show(); }
+    async function prosesLogin() {
+      if(document.getElementById('inpPinLogin').value === adminPin) {
+        mdLogin.hide(); 
+        document.getElementById('view-siswa').classList.add('hidden'); document.getElementById('nav-publik').classList.add('hidden');
+        document.getElementById('view-admin').classList.remove('hidden'); document.getElementById('nav-admin').classList.remove('hidden');
+        await tarikDataServer(); 
+      } else { alert("PIN Guru Salah!"); }
+    }
+    
+    async function tarikDataServer() {
+      try {
+        const res = await fetch(API_URL + "?action=get_data");
+        const json = await res.json();
+        if(json.status === "success") {
+          APP_DATA.masterSiswa = json.masterSiswa || [];
+          APP_DATA.records = json.records || [];
+          if(json.settings) APP_DATA.settings = Object.assign(APP_DATA.settings, json.settings);
+          renderMasterSiswa(); renderRiwayatAbsen(); renderLaporanDisiplin(); applySettings();
+        }
+      } catch(e) {}
+    }
+
+    function keluarAdmin() {
+      document.getElementById('view-admin').classList.add('hidden'); document.getElementById('nav-admin').classList.add('hidden');
+      document.getElementById('view-siswa').classList.remove('hidden'); document.getElementById('nav-publik').classList.remove('hidden');
+      checkStudentProfile();
+    }
+    function switchAdminTab(tabId, navEl) {
+      document.querySelectorAll('.admin-section').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      document.getElementById('tab-' + tabId).classList.add('active'); navEl.classList.add('active');
+    }
+
+    async function simpanSiswaMaster(e) {
+      e.preventDefault();
+      const nis = document.getElementById('inpMasterNIS').value.trim(); const nama = document.getElementById('inpMasterNama').value.trim();
+      if(APP_DATA.masterSiswa.find(s => s.nis === nis)) return alert("NIS sudah terdaftar!");
+      APP_DATA.masterSiswa.push({ nis, nama });
+      await syncMasterToServer();
+      renderMasterSiswa(); renderDatalistSiswa(); renderLaporanDisiplin(); updateStatistikHarianSiswa(); e.target.reset();
+    }
+
+    async function hapusSiswaMaster(nis) {
+      if(confirm("Hapus siswa ini dari master?")) {
+        APP_DATA.masterSiswa = APP_DATA.masterSiswa.filter(s => s.nis !== nis);
+        await syncMasterToServer();
+        renderMasterSiswa(); renderDatalistSiswa(); renderLaporanDisiplin(); updateStatistikHarianSiswa();
+      }
+    }
+
+    async function syncMasterToServer() {
+      try { await fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: "update_master", masterSiswa: APP_DATA.masterSiswa }) }); } catch(e){}
+    }
+
+    function renderMasterSiswa() {
+      const list = document.getElementById('list-master-siswa'); const select = document.getElementById('inpManualSiswa');
+      list.innerHTML = ""; select.innerHTML = '<option value="">-- Pilih Siswa --</option>';
+      APP_DATA.masterSiswa.forEach(s => {
+        list.innerHTML += `<li class="list-group-item d-flex justify-content-between align-items-center"><div><strong>${s.nama}</strong><br><small class="text-muted">NIS: ${s.nis}</small></div><button class="btn btn-sm btn-outline-danger" onclick="hapusSiswaMaster('${s.nis}')"><i class="bi bi-trash"></i></button></li>`;
+        select.innerHTML += `<option value="${s.nis}">${s.nis} - ${s.nama}</option>`;
+      });
+    }
+
+    function generateQrMaster() {
+      document.getElementById('qrMasterCanvas').innerHTML = "";
+      new QRCode(document.getElementById('qrMasterCanvas'), { text: "MASTER_QR_" + getTodayStr(), width: 220, height: 220, colorDark : "#0d6efd", colorLight : "#ffffff" });
+      document.getElementById('qr-tanggal-hari-ini').innerText = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    }
+    
+    function bagikanLinkWa() {
+      const msg = `Halo! Batas Absen: ${APP_DATA.settings.jamMulai} - ${APP_DATA.settings.jamSelesai} WIB.\n\nAkses Portal Absen di sini:\n${window.location.href.split('?')[0]}`;
+      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+
+    async function submitAbsenManual(e) {
+      e.preventDefault();
+      const nis = document.getElementById('inpManualSiswa').value; const status = document.getElementById('inpManualStatus').value;
+      if(!nis) return alert("Pilih siswa!");
+      const s = APP_DATA.masterSiswa.find(x => x.nis === nis);
+      
+      const payload = { action: "submit_absen", nis: s.nis, nama: s.nama, status: status, ket: 'Input Manual Guru', date: getTodayStr(), time: new Date().toLocaleTimeString('id-ID') };
+      try { await fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); } catch(e){}
+
+      APP_DATA.records.push({ id: new Date().getTime(), date: getTodayStr(), time: new Date().toLocaleTimeString('id-ID'), nis: s.nis, nama: s.nama, status, ket: 'Input Manual' });
+      renderRiwayatAbsen(); renderLaporanDisiplin(); updateStatistikHarianSiswa(); alert(`Disimpan: ${s.nama} (${status})`); e.target.reset();
+    }
+
+    function renderRiwayatAbsen() {
+      const list = document.getElementById('list-riwayat'); list.innerHTML = "";
+      [...APP_DATA.records].reverse().forEach(r => {
+        let b = r.status === 'Hadir' ? 'success' : (r.status === 'Sakit' ? 'info' : (r.status==='Izin'?'warning':'danger'));
+        list.innerHTML += `<li class="list-group-item d-flex justify-content-between align-items-center"><div><strong class="d-block">${r.nama}</strong><small class="text-muted">${r.date} | ${r.ket}</small></div><span class="badge bg-${b}">${r.status}</span></li>`;
+      });
+    }
+
+    function renderLaporanDisiplin() {
+      const tbody = document.getElementById('tbody-laporan-disiplin');
+      tbody.innerHTML = '';
+      if(APP_DATA.masterSiswa.length === 0) tbody.innerHTML = `<tr><td colspan="5" class="text-center small text-muted">Belum ada data siswa</td></tr>`;
+      
+      APP_DATA.masterSiswa.forEach(s => {
+        let recs = APP_DATA.records.filter(r => r.nis === s.nis);
+        let h = recs.filter(r => r.status === 'Hadir').length;
+        let i = recs.filter(r => r.status === 'Izin').length;
+        let sk = recs.filter(r => r.status === 'Sakit').length;
+        let a = recs.filter(r => r.status === 'Alpa').length;
+        tbody.innerHTML += `<tr><td class="small fw-bold text-truncate" style="max-width: 140px;">${s.nama}</td><td class="text-center text-success fw-bold">${h}</td><td class="text-center text-warning fw-bold">${i}</td><td class="text-center text-info fw-bold">${sk}</td><td class="text-center text-danger fw-bold">${a}</td></tr>`;
+      });
+    }
+
+    function copyLaporanDisiplinWa() {
+      let text = `*REKAP DISIPLIN KEHADIRAN KELAS*\nSekolah: ${APP_DATA.settings.namaSekolah}\nWali Kelas: ${APP_DATA.settings.namaWali}\n\n`;
+      APP_DATA.masterSiswa.forEach((s, idx) => {
+        let recs = APP_DATA.records.filter(r => r.nis === s.nis);
+        let h = recs.filter(r => r.status === 'Hadir').length;
+        let i = recs.filter(r => r.status === 'Izin').length;
+        let sk = recs.filter(r => r.status === 'Sakit').length;
+        let a = recs.filter(r => r.status === 'Alpa').length;
+        text += `${idx+1}. ${s.nama}\n(H:${h} | I:${i} | S:${sk} | A:${a})\n`;
+      });
+      navigator.clipboard.writeText(text).then(() => alert("Laporan berhasil disalin untuk WhatsApp!"));
+    }
+
+    function applySettings() {
+      document.getElementById('ui-pub-sekolah').innerText = APP_DATA.settings.namaSekolah;
+      document.getElementById('ui-pub-wali').innerText = `Wali Kelas: ${APP_DATA.settings.namaWali} (${APP_DATA.settings.tahunAjaran})`;
+      
+      document.getElementById('setNamaSekolah').value = APP_DATA.settings.namaSekolah;
+      document.getElementById('setNamaWali').value = APP_DATA.settings.namaWali;
+      document.getElementById('setTahunAjaran').value = APP_DATA.settings.tahunAjaran;
+      document.getElementById('setAdminEmail').value = APP_DATA.settings.adminEmail || "";
+      document.getElementById('setJamMulai').value = APP_DATA.settings.jamMulai; 
+      document.getElementById('setJamSelesai').value = APP_DATA.settings.jamSelesai;
+    }
+
+    async function simpanPengaturanUmum() {
+      APP_DATA.settings.namaSekolah = document.getElementById('setNamaSekolah').value;
+      APP_DATA.settings.namaWali = document.getElementById('setNamaWali').value;
+      APP_DATA.settings.tahunAjaran = document.getElementById('setTahunAjaran').value;
+      APP_DATA.settings.adminEmail = document.getElementById('setAdminEmail').value.trim();
+      APP_DATA.settings.jamMulai = document.getElementById('setJamMulai').value; 
+      APP_DATA.settings.jamSelesai = document.getElementById('setJamSelesai').value;
+      
+      try {
+        await fetch(API_URL, {
+          method: 'POST', mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: "update_settings", settings: APP_DATA.settings })
+        });
+      } catch(e){}
+
+      applySettings(); updateStatistikHarianSiswa();
+      alert("Pengaturan Dasbor & Email Admin Berhasil Disimpan ke Server!");
+    }
+
+    // --- FITUR VALIDASI EMAIL LUPA PIN ---
+    function showLupaPin() {
+      mdLogin.hide(); 
+      document.getElementById('inpEmailReset').value = '';
+      document.getElementById('step-kirim-otp').classList.remove('hidden'); 
+      document.getElementById('step-verifikasi-otp').classList.add('hidden'); 
+      mdLupa.show();
+    }
+
+    async function kirimOtp() {
+      const emailInput = document.getElementById('inpEmailReset').value.trim();
+      const savedEmail = APP_DATA.settings.adminEmail;
+
+      if(!emailInput) return alert("Masukkan alamat email terlebih dahulu!");
+      if(emailInput.toLowerCase() !== savedEmail.toLowerCase()) {
+        return alert("⚠️ Email tidak cocok! Email yang Anda masukkan tidak terdaftar di menu Pengaturan sistem.");
+      }
+
+      const btn = document.getElementById('btnKirimOtp'); 
+      btn.innerText = "Mengirim OTP..."; btn.disabled = true;
+      
+      generatedOtp = Math.floor(1000 + Math.random() * 9000).toString();
+
+      try {
+        await fetch(API_URL, {
+          method: 'POST', mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: "send_otp", email: savedEmail, otp: generatedOtp })
+        });
+      } catch(e){}
+
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      document.getElementById('step-kirim-otp').classList.add('hidden'); 
+      document.getElementById('step-verifikasi-otp').classList.remove('hidden');
+      btn.innerText = "Kirim OTP ke Email"; btn.disabled = false;
+      alert(`Kode OTP verifikasi telah dikirim ke email terdaftar (${savedEmail}). Silakan cek kotak masuk/spam Anda.`);
+    }
+
+    function verifikasiOtp() {
+      const enteredOtp = document.getElementById('inpOtp').value.trim();
+      const newPin = document.getElementById('inpPinReset').value.trim();
+
+      if(enteredOtp === generatedOtp && newPin.length >= 4) {
+        adminPin = newPin;
+        localStorage.setItem('prod_admin_pin', adminPin);
+        mdLupa.hide();
+        alert("PIN Guru berhasil di-reset! Silakan login kembali dengan PIN baru.");
+      } else {
+        alert("Kode OTP salah atau PIN baru minimal 4 digit!");
+      }
+    }
+  </script>
+</body>
+</html>
