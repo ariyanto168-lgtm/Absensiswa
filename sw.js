@@ -1,4 +1,4 @@
-const CACHE_NAME = 'absen-siswa-v2.2.0';
+const CACHE_NAME = 'absen-siswa-v2.3.0';
 const urlsToCache = [
   './index.html',
   './manifest.json',
