@@ -66,14 +66,14 @@
 
   <div class="container mt-3">
 
-    <!-- BANNER / TOMBOL INSTALASI PwA -->
+    <!-- BANNER INSTALASI PWA KUSTOM -->
     <div id="installBanner" class="card shadow border-primary mb-3 hidden bg-primary-subtle">
       <div class="card-body d-flex align-items-center justify-content-between py-2">
         <div class="d-flex align-items-center">
           <i class="bi bi-phone-fill fs-3 text-primary me-3"></i>
           <div>
             <h6 class="fw-bold mb-0 text-primary" style="font-size: 0.85rem;">Instal Portal Absen</h6>
-            <small class="text-muted" style="font-size: 0.7rem;">Akses lebih cepat seperti aplikasi HP.</small>
+            <small class="text-muted" style="font-size: 0.7rem;">Akses lebih cepat tanpa browser.</small>
           </div>
         </div>
         <button class="btn btn-primary btn-sm rounded-pill px-3 fw-bold shadow-sm" id="btnInstallApp">
@@ -85,7 +85,7 @@
     <!-- ================= VIEW: SISWA ================= -->
     <div id="view-siswa">
       
-      <!-- FORM IDENTITAS -->
+      <!-- FORM IDENTITAS (PENCARIAN) -->
       <div class="card shadow-sm border-0 mb-4" id="card-identitas">
         <div class="card-body">
           <h5 class="fw-bold text-primary-custom mb-3"><i class="bi bi-search"></i> Cari Data Siswa</h5>
@@ -105,6 +105,7 @@
           <h5 class="fw-bold mb-1">Halo, <span id="ui-nama-siswa" class="text-primary-custom"></span>!</h5>
           <p class="small text-muted mb-3">NIS: <span id="ui-nis-siswa"></span> <br><a href="#" class="text-danger text-decoration-none" onclick="resetIdentitas()">Ganti Identitas</a></p>
           
+          <!-- INFO STATUS HARIAN DINAMIS -->
           <div class="row g-2 mb-3">
             <div class="col-4">
               <div class="p-2 border rounded bg-light">
@@ -172,7 +173,7 @@
 
       <div class="text-center mt-4 mb-5">
         <div class="kamuflase-btn text-muted" onclick="showLoginAdmin()">
-          Powered by Ari GPM | v2.3.0.MASTER 🔒
+          Powered by Ari GPM | v2.3.1.MASTER 🔒
         </div>
       </div>
     </div>
@@ -355,5 +356,4 @@
     </div>
   </div>
 
-  <!-- Modal Lupa PIN (Validasi Email Pengaturan) -->
-  <div
+  <!-- Mod
