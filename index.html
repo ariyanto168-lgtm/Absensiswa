@@ -44,6 +44,7 @@
 
     .anti-joki-text { font-size: 2.1rem; text-transform: uppercase; line-height: 1.15; word-wrap: break-word; }
     .laporan-box { max-height: 140px; overflow-y: auto; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 8px 10px; font-size: 0.82rem; }
+    .cursor-pointer { cursor: pointer; }
   </style>
 </head>
 <body>
@@ -170,14 +171,18 @@
 
       <!-- DASBOR LAPORAN SISWA (PASCA-SCAN) -->
       <div id="dashboard-siswa-post-scan" class="hidden">
-        <div class="alert alert-success small mb-3 text-center border-0 shadow-sm">
+        <div class="alert alert-success small mb-3 text-center border-0 shadow-sm" id="ui-banner-status-hariini">
           <i class="bi bi-check-circle-fill"></i> Absensi Anda hari ini telah tercatat!
         </div>
         
         <div class="card shadow-sm border-0 mb-3">
           <div class="card-body">
-            <h6 class="fw-bold text-primary-custom mb-3"><i class="bi bi-person-lines-fill"></i> Catatan Disiplinku</h6>
-            <div class="d-flex justify-content-between text-center small fw-bold">
+            <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+              <h6 class="fw-bold text-primary-custom mb-0"><i class="bi bi-person-lines-fill"></i> Catatan Disiplinku</h6>
+              <span class="badge bg-success" id="ui-my-today-badge">Hari Ini: Hadir</span>
+            </div>
+            <div class="small text-muted text-center mb-2" id="ui-my-today-detail" style="font-size: 0.75rem;">-</div>
+            <div class="d-flex justify-content-between text-center small fw-bold bg-light rounded p-2">
               <div><span class="d-block text-success fs-5" id="ui-my-hadir">0</span> Hadir</div>
               <div><span class="d-block text-warning fs-5" id="ui-my-izin">0</span> Izin</div>
               <div><span class="d-block text-info fs-5" id="ui-my-sakit">0</span> Sakit</div>
@@ -191,7 +196,11 @@
             <h6 class="fw-bold text-primary-custom mb-2"><i class="bi bi-people-fill"></i> Status Kelas Hari Ini</h6>
             <p class="small fw-bold text-success mb-1 mt-2">Telah Hadir (<span id="count-kelas-hadir">0</span>):</p>
             <div class="laporan-box text-success" id="ui-kelas-hadir">-</div>
-            <p class="small fw-bold text-danger mb-1 mt-2">Belum Hadir (<span id="count-kelas-belum">0</span>):</p>
+            <div id="box-kelas-kendala" class="hidden">
+              <p class="small fw-bold text-warning mb-1 mt-2">Izin / Sakit / Alpa (<span id="count-kelas-kendala">0</span>):</p>
+              <div class="laporan-box text-dark" id="ui-kelas-kendala">-</div>
+            </div>
+            <p class="small fw-bold text-danger mb-1 mt-2">Belum Absen (<span id="count-kelas-belum">0</span>):</p>
             <div class="laporan-box text-danger" id="ui-kelas-belum">-</div>
           </div>
         </div>
@@ -200,7 +209,7 @@
       <!-- FOOTER KAMUFLASE LOGIN GURU -->
       <div class="text-center mt-4 mb-5">
         <div class="kamuflase-btn text-muted" role="button" tabindex="0" onclick="showLoginAdmin()">
-          Powered by Ari GPM | v2.4.2.MASTER 🔒
+          Powered by Ari GPM | v2.4.3.MASTER 🔒
         </div>
       </div>
     </div>
@@ -243,18 +252,22 @@
         </div>
       </div>
 
-      <!-- TAB ADMIN 3: ABSEN MANUAL & RIWAYAT -->
+      <!-- TAB ADMIN 3: ABSEN MANUAL & RIWAYAT DINAMIS -->
       <div id="tab-riwayat-absen" class="admin-section">
         <ul class="nav nav-pills nav-fill mb-3" role="tablist">
-          <li class="nav-item-tab" role="presentation"><button class="nav-link active btn-sm" data-bs-toggle="pill" data-bs-target="#subtab-manual" type="button">Manual</button></li>
-          <li class="nav-item-tab" role="presentation"><button class="nav-link btn-sm" data-bs-toggle="pill" data-bs-target="#subtab-riwayat" type="button">Riwayat</button></li>
+          <li class="nav-item-tab" role="presentation"><button class="nav-link active btn-sm" data-bs-toggle="pill" data-bs-target="#subtab-manual" type="button">Input Manual</button></li>
+          <li class="nav-item-tab" role="presentation"><button class="nav-link btn-sm" data-bs-toggle="pill" data-bs-target="#subtab-riwayat" type="button" onclick="renderRiwayatAbsen()">Log Riwayat</button></li>
         </ul>
         <div class="tab-content">
           <div class="tab-pane fade show active" id="subtab-manual">
             <div class="card shadow-sm border-0">
               <div class="card-body">
                 <form onsubmit="submitAbsenManual(event)">
-                  <div class="mb-3">
+                  <div class="mb-2">
+                    <label class="form-label small fw-bold">Tanggal Absen</label>
+                    <input type="date" class="form-control form-control-sm" id="inpManualTanggal" required>
+                  </div>
+                  <div class="mb-2">
                     <label class="form-label small fw-bold">Pilih Siswa</label>
                     <select class="form-select form-select-sm" id="inpManualSiswa" required></select>
                   </div>
@@ -272,14 +285,55 @@
               </div>
             </div>
           </div>
+
           <div class="tab-pane fade" id="subtab-riwayat">
             <div class="d-flex justify-content-between align-items-center mb-2">
-              <h6 class="fw-bold mb-0">Riwayat Absensi</h6>
+              <h6 class="fw-bold mb-0">Log Riwayat Absensi</h6>
               <div class="d-flex gap-1">
                 <button type="button" class="btn btn-sm btn-outline-primary" onclick="tarikDataServer(true)"><i class="bi bi-arrow-repeat"></i> Sinkron</button>
                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="konfirmasiResetRiwayat()"><i class="bi bi-trash"></i> Reset</button>
               </div>
             </div>
+
+            <!-- FILTER DINAMIS RIWAYAT -->
+            <div class="card shadow-sm border-0 mb-2">
+              <div class="card-body p-2">
+                <div class="row g-1 mb-1">
+                  <div class="col-6">
+                    <select class="form-select form-select-sm" id="filterRiwayatMode" onchange="onChangeFilterRiwayatMode()">
+                      <option value="today">Hari Ini</option>
+                      <option value="date">Pilih Tanggal</option>
+                      <option value="all">Semua Riwayat</option>
+                    </select>
+                  </div>
+                  <div class="col-6">
+                    <select class="form-select form-select-sm" id="filterRiwayatStatus" onchange="renderRiwayatAbsen()">
+                      <option value="ALL">Semua Status</option>
+                      <option value="Hadir">Hadir</option>
+                      <option value="Izin">Izin</option>
+                      <option value="Sakit">Sakit</option>
+                      <option value="Alpa">Alpa</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="row g-1">
+                  <div class="col-5 hidden" id="wrapFilterRiwayatDate">
+                    <input type="date" class="form-control form-control-sm" id="filterRiwayatDate" onchange="renderRiwayatAbsen()">
+                  </div>
+                  <div class="col" id="wrapFilterRiwayatSearch">
+                    <input type="text" class="form-control form-control-sm" id="filterRiwayatSearch" placeholder="Cari nama / NIS..." oninput="renderRiwayatAbsen()">
+                  </div>
+                </div>
+                <div class="d-flex justify-content-between text-center small fw-bold mt-2 pt-2 border-top" id="riwayat-summary-bar" style="font-size: 0.72rem;">
+                  <span class="text-dark">Total: <strong id="rw-cnt-all">0</strong></span>
+                  <span class="text-success">H: <strong id="rw-cnt-h">0</strong></span>
+                  <span class="text-warning">I: <strong id="rw-cnt-i">0</strong></span>
+                  <span class="text-info">S: <strong id="rw-cnt-s">0</strong></span>
+                  <span class="text-danger">A: <strong id="rw-cnt-a">0</strong></span>
+                </div>
+              </div>
+            </div>
+
             <div class="card shadow-sm border-0">
               <ul class="list-group list-group-flush" id="list-riwayat"></ul>
             </div>
@@ -287,28 +341,136 @@
         </div>
       </div>
 
-      <!-- TAB ADMIN 4: AUTO LAPORAN DISIPLIN -->
+      <!-- TAB ADMIN 4: LAPORAN DINAMIS (HARIAN & AKUMULASI SEMESTER) -->
       <div id="tab-laporan-disiplin" class="admin-section">
-        <h5 class="fw-bold mb-3">Laporan Disiplin Kelas</h5>
-        <div class="card shadow-sm border-0 mb-3">
-          <div class="card-body p-0">
-            <div class="table-responsive">
-              <table class="table table-striped table-hover mb-0 text-nowrap">
-                <thead class="table-dark">
-                  <tr>
-                    <th class="small">Nama Siswa</th>
-                    <th class="text-center small">H</th>
-                    <th class="text-center small">I</th>
-                    <th class="text-center small">S</th>
-                    <th class="text-center small">A</th>
-                  </tr>
-                </thead>
-                <tbody id="tbody-laporan-disiplin"></tbody>
-              </table>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="fw-bold mb-0">Rekap & Laporan</h5>
+          <button type="button" class="btn btn-sm btn-outline-primary" onclick="tarikDataServer(true)"><i class="bi bi-arrow-repeat"></i></button>
+        </div>
+
+        <!-- SWITCHER MODE LAPORAN -->
+        <div class="btn-group w-100 mb-3 shadow-sm" role="group">
+          <button type="button" class="btn btn-primary btn-sm fw-bold" id="btnModeLaporanHarian" onclick="switchLaporanMode('harian')">
+            <i class="bi bi-calendar-check"></i> Absen Harian
+          </button>
+          <button type="button" class="btn btn-outline-primary btn-sm fw-bold" id="btnModeLaporanSemester" onclick="switchLaporanMode('semester')">
+            <i class="bi bi-bar-chart-fill"></i> Akumulasi Semester
+          </button>
+        </div>
+
+        <!-- PANEL 1: LAPORAN HARIAN PER TANGGAL -->
+        <div id="panel-laporan-harian">
+          <div class="card shadow-sm border-0 mb-2">
+            <div class="card-body p-2">
+              <div class="d-flex gap-1 align-items-center mb-2">
+                <input type="date" class="form-control form-control-sm" id="lapHarianTanggal" onchange="renderLaporanHarian()">
+                <button type="button" class="btn btn-sm btn-outline-secondary text-nowrap" onclick="setTanggalLaporanHarian(0)">Hari Ini</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary text-nowrap" onclick="setTanggalLaporanHarian(-1)">Kemarin</button>
+              </div>
+              <div class="row g-1 text-center">
+                <div class="col-3">
+                  <div class="p-1 rounded bg-light border">
+                    <small class="d-block text-muted" style="font-size: 9px;">SISWA</small>
+                    <strong class="small" id="lh-stat-total">0</strong>
+                  </div>
+                </div>
+                <div class="col-3">
+                  <div class="p-1 rounded bg-success-subtle">
+                    <small class="d-block text-success" style="font-size: 9px;">HADIR</small>
+                    <strong class="small text-success" id="lh-stat-hadir">0</strong>
+                  </div>
+                </div>
+                <div class="col-3">
+                  <div class="p-1 rounded bg-warning-subtle">
+                    <small class="d-block text-warning-emphasis" style="font-size: 9px;">I / S</small>
+                    <strong class="small text-warning-emphasis" id="lh-stat-is">0</strong>
+                  </div>
+                </div>
+                <div class="col-3">
+                  <div class="p-1 rounded bg-danger-subtle">
+                    <small class="d-block text-danger" style="font-size: 9px;">A / BLM</small>
+                    <strong class="small text-danger" id="lh-stat-ab">0</strong>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
+
+          <div class="card shadow-sm border-0 mb-3">
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0 align-middle">
+                  <thead class="table-dark">
+                    <tr>
+                      <th class="small">Nama Siswa</th>
+                      <th class="text-center small">Status</th>
+                      <th class="text-end small">Waktu / Ket</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbody-laporan-harian"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <button type="button" class="btn btn-success w-100 rounded-pill fw-bold shadow-sm" onclick="copyLaporanHarianWa()">
+            <i class="bi bi-whatsapp"></i> Salin Rekap Harian ke WA
+          </button>
         </div>
-        <button type="button" class="btn btn-success w-100 rounded-pill fw-bold shadow-sm" onclick="copyLaporanDisiplinWa()"><i class="bi bi-whatsapp"></i> Salin Rekap untuk WA</button>
+
+        <!-- PANEL 2: AKUMULASI ABSEN SELAMA SEMESTER -->
+        <div id="panel-laporan-semester" class="hidden">
+          <div class="card shadow-sm border-0 mb-2">
+            <div class="card-body p-2">
+              <div class="row g-1 mb-2">
+                <div class="col-6">
+                  <select class="form-select form-select-sm" id="lapSemesterBulan" onchange="renderLaporanDisiplin()">
+                    <option value="ALL">Semua Semester</option>
+                  </select>
+                </div>
+                <div class="col-6">
+                  <input type="text" class="form-control form-control-sm" id="lapSemesterSearch" placeholder="Cari siswa..." oninput="renderLaporanDisiplin()">
+                </div>
+              </div>
+              <div class="d-flex justify-content-between align-items-center bg-primary-subtle rounded px-2 py-1 small">
+                <span>Hari Efektif Mengajar: <strong id="ls-total-hari">0 Hari</strong></span>
+                <span>Kehadiran: <strong id="ls-avg-persen" class="text-primary">0%</strong></span>
+              </div>
+              <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">
+                <i class="bi bi-info-circle"></i> Ketuk nama siswa untuk melihat rincian tanggal absennya.
+              </small>
+            </div>
+          </div>
+
+          <div class="card shadow-sm border-0 mb-3">
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0 text-nowrap align-middle">
+                  <thead class="table-dark">
+                    <tr>
+                      <th class="small">Nama Siswa</th>
+                      <th class="text-center small">H</th>
+                      <th class="text-center small">I</th>
+                      <th class="text-center small">S</th>
+                      <th class="text-center small">A</th>
+                      <th class="text-center small">%</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbody-laporan-disiplin"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-grid gap-2">
+            <button type="button" class="btn btn-success rounded-pill fw-bold shadow-sm" onclick="copyLaporanDisiplinWa()">
+              <i class="bi bi-whatsapp"></i> Salin Rekap Semester untuk WA
+            </button>
+            <button type="button" class="btn btn-outline-dark btn-sm rounded-pill fw-bold" onclick="exportLaporanCsv()">
+              <i class="bi bi-file-earmark-spreadsheet"></i> Download Rekap Excel (CSV)
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- TAB ADMIN 5: PENGATURAN -->
@@ -401,6 +563,34 @@
     </div>
   </div>
 
+  <!-- Modal Detail Riwayat Per Siswa (Semester) -->
+  <div class="modal fade" id="modalDetailSiswaSemester" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header bg-primary-custom py-2">
+          <div>
+            <h6 class="modal-title fw-bold mb-0" id="detSiswaNama">Nama Siswa</h6>
+            <small id="detSiswaNis" style="font-size: 0.75rem;">NIS: -</small>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-3">
+          <div class="d-flex justify-content-around text-center bg-light rounded p-2 mb-3 small fw-bold">
+            <div><span class="d-block text-success fs-6" id="detSiswaH">0</span>Hadir</div>
+            <div><span class="d-block text-warning fs-6" id="detSiswaI">0</span>Izin</div>
+            <div><span class="d-block text-info fs-6" id="detSiswaS">0</span>Sakit</div>
+            <div><span class="d-block text-danger fs-6" id="detSiswaA">0</span>Alpa</div>
+          </div>
+          <h6 class="small fw-bold text-muted mb-2">Catatan Kehadiran Harian:</h6>
+          <ul class="list-group list-group-flush small" id="detSiswaList"></ul>
+        </div>
+        <div class="modal-footer py-2">
+          <button type="button" class="btn btn-secondary btn-sm rounded-pill px-4" data-bs-dismiss="modal">Tutup</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal Anti-Joki -->
   <div class="modal fade" id="modalAntiJoki" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down m-0 h-100">
@@ -434,7 +624,7 @@
     </div>
   </div>
 
-  <!-- Modal Buka Kunci Perangkat (Khusus Guru jika 1 HP dipakai bergantian atas izin guru) -->
+  <!-- Modal Buka Kunci Perangkat -->
   <div class="modal fade" id="modalUnlockDevice" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-sm">
       <div class="modal-content border-0 shadow">
@@ -527,9 +717,8 @@
       showToast("Aplikasi berhasil dipasang di perangkat!", "success");
     });
 
-    // ================= 2. KONFIGURASI API & STATE APLIKASI =================
-    // Ganti URL di bawah ini dengan URL Web App Google Apps Script Anda
-    const API_URL = "https://script.google.com/macros/s/AKfycbyXQr9EJm_bWmfc1ovKL6Nege-uggrJFSRwAoikyILeZGpQja3znYymmoLvwIvGhQnejg/exec "; 
+    // ================= 2. KONFIGURASI API & HELPER NORMALISASI DATA =================
+    const API_URL = "https://script.google.com/macros/s/AKfycbyXQr9EJm_bWmfc1ovKL6Nege-uggrJFSRwAoikyILeZGpQja3znYymmoLvwIvGhQnejg/exec"; 
     const isApiConfigured = () => API_URL && API_URL.startsWith("https://") && !API_URL.includes("YOUR_GAS_DEPLOYMENT_ID");
 
     const getTodayStr = () => {
@@ -539,14 +728,59 @@
 
     const getPortalUrl = () => window.location.href.split('?')[0].split('#')[0];
 
-    // Helper Pengaman Kunci Perangkat (1 HP = 1 Siswa per Hari)
+    function normalizeDateStr(raw) {
+      if (!raw) return getTodayStr();
+      const s = String(raw).trim();
+      if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+      if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)) {
+        const parts = s.split('/');
+        return `${parts[2].slice(0, 4)}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+      }
+      const d = new Date(s);
+      if (!isNaN(d.getTime())) {
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      }
+      return s;
+    }
+
+    function normalizeStatus(raw) {
+      const s = String(raw || '').trim().toLowerCase();
+      if (s === 'hadir') return 'Hadir';
+      if (s === 'izin') return 'Izin';
+      if (s === 'sakit') return 'Sakit';
+      if (s === 'alpa' || s === 'alpha') return 'Alpa';
+      return 'Hadir';
+    }
+
+    // Mengambil semua record yang sudah dinormalisasi
+    function getNormalizedRecords() {
+      return (APP_DATA.records || []).map((r, idx) => ({
+        id: r.id || idx,
+        date: normalizeDateStr(r.date),
+        time: String(r.time || '').trim(),
+        nis: String(r.nis || '').trim(),
+        nama: String(r.nama || '').trim(),
+        status: normalizeStatus(r.status),
+        ket: String(r.ket || 'Scan Mandiri').trim()
+      })).filter(r => r.nis !== '');
+    }
+
+    // Menyatukan status per siswa per hari (jika ada revisi/dobel di hari yang sama, ambil yang terbaru)
+    function getDailyConsolidatedRecords() {
+      const map = new Map();
+      getNormalizedRecords().forEach(r => {
+        const key = `${r.date}__${r.nis}`;
+        map.set(key, r);
+      });
+      return Array.from(map.values());
+    }
+
     function getDeviceLockToday() {
       try {
         const lock = JSON.parse(localStorage.getItem('prod_device_absen_lock') || 'null');
         if (lock && lock.date === getTodayStr() && lock.nis) {
           return lock;
         }
-        // Otomatis bersihkan jika sudah ganti hari
         if (lock && lock.date !== getTodayStr()) {
           localStorage.removeItem('prod_device_absen_lock');
         }
@@ -557,8 +791,8 @@
     function setDeviceLockToday(nis, nama, time) {
       localStorage.setItem('prod_device_absen_lock', JSON.stringify({
         date: getTodayStr(),
-        nis: nis,
-        nama: nama,
+        nis: String(nis).trim(),
+        nama: String(nama).trim(),
         time: time
       }));
     }
@@ -665,6 +899,15 @@
         }, 1500);
       }
 
+      // Set default tanggal pada form input manual & laporan harian
+      const today = getTodayStr();
+      const inpManualTgl = document.getElementById('inpManualTanggal');
+      const lapHarianTgl = document.getElementById('lapHarianTanggal');
+      const filterRwDate = document.getElementById('filterRiwayatDate');
+      if (inpManualTgl) inpManualTgl.value = today;
+      if (lapHarianTgl) lapHarianTgl.value = today;
+      if (filterRwDate) filterRwDate.value = today;
+
       refreshAllUI();
 
       if (isApiConfigured()) {
@@ -674,12 +917,14 @@
 
     function refreshAllUI() {
       APP_DATA.settings = Object.assign({}, DEFAULT_DATA.settings, APP_DATA.settings);
+      populateSemesterMonthOptions();
       renderDatalistSiswa();
       checkStudentProfile();
       applySettings();
       generateQrMaster();
       renderMasterSiswa();
       renderRiwayatAbsen();
+      renderLaporanHarian();
       renderLaporanDisiplin();
     }
 
@@ -714,10 +959,9 @@
       const lockDetail = document.getElementById('deviceLockDetail');
       const linkGanti = document.getElementById('linkGantiIdentitas');
 
-      // Jika perangkat sudah dipakai absen hari ini, paksa kunci profil ke siswa yang sudah absen
       if (deviceLock) {
-        studentSession.nis = deviceLock.nis;
-        studentSession.nama = deviceLock.nama;
+        studentSession.nis = String(deviceLock.nis).trim();
+        studentSession.nama = String(deviceLock.nama).trim();
         studentSession.lastAbsenDate = deviceLock.date;
         localStorage.setItem('prod_siswa_profile', JSON.stringify(studentSession));
 
@@ -739,14 +983,16 @@
         }
       }
 
-      if (studentSession.nis && studentSession.nama) {
+      const cleanNis = String(studentSession.nis || '').trim();
+      if (cleanNis && studentSession.nama) {
         document.getElementById('card-identitas').classList.add('hidden');
         document.getElementById('card-scan').classList.remove('hidden');
         document.getElementById('ui-nama-siswa').innerText = studentSession.nama;
-        document.getElementById('ui-nis-siswa').innerText = studentSession.nis;
+        document.getElementById('ui-nis-siswa').innerText = cleanNis;
 
-        const alreadyToday = Boolean(deviceLock) || studentSession.lastAbsenDate === getTodayStr() || 
-          APP_DATA.records.some(r => r.nis === studentSession.nis && r.date === getTodayStr());
+        const todayConsolidated = getDailyConsolidatedRecords().filter(r => r.date === getTodayStr());
+        const myTodayRec = todayConsolidated.find(r => r.nis === cleanNis);
+        const alreadyToday = Boolean(deviceLock) || studentSession.lastAbsenDate === getTodayStr() || Boolean(myTodayRec);
 
         if (alreadyToday) {
           document.getElementById('btnMulaiScan').classList.add('hidden');
@@ -764,11 +1010,11 @@
 
     function updateStatistikHarianSiswa() {
       const totalSiswa = APP_DATA.masterSiswa.length;
-      const todayRecs = APP_DATA.records.filter(r => r.date === getTodayStr() && r.status === 'Hadir');
-      const uniqueHadir = new Set(todayRecs.map(r => r.nis)).size;
+      const todayConsolidated = getDailyConsolidatedRecords().filter(r => r.date === getTodayStr());
+      const hadirCount = todayConsolidated.filter(r => r.status === 'Hadir').length;
       document.getElementById('stat-total-siswa').innerText = totalSiswa;
-      document.getElementById('stat-hadir-hariini').innerText = uniqueHadir;
-      document.getElementById('stat-belum-hariini').innerText = Math.max(0, totalSiswa - uniqueHadir);
+      document.getElementById('stat-hadir-hariini').innerText = hadirCount;
+      document.getElementById('stat-belum-hariini').innerText = Math.max(0, totalSiswa - hadirCount);
     }
 
     function renderDatalistSiswa() {
@@ -776,7 +1022,7 @@
       if (!datalist) return;
       datalist.innerHTML = "";
       APP_DATA.masterSiswa.forEach(s => {
-        datalist.innerHTML += `<option value="${s.nis} - ${s.nama}">`;
+        datalist.innerHTML += `<option value="${String(s.nis).trim()} - ${String(s.nama).trim()}">`;
       });
     }
 
@@ -791,16 +1037,16 @@
       const inputVal = document.getElementById('inpCariSiswa').value.trim();
       if (!inputVal) return showToast("Ketik atau pilih nama Anda terlebih dahulu!", "warning");
       const targetNis = inputVal.split(' - ')[0].trim();
-      const match = APP_DATA.masterSiswa.find(s => s.nis === targetNis) || 
-                    APP_DATA.masterSiswa.find(s => s.nama.toLowerCase() === inputVal.toLowerCase());
+      const match = APP_DATA.masterSiswa.find(s => String(s.nis).trim() === targetNis) || 
+                    APP_DATA.masterSiswa.find(s => String(s.nama).trim().toLowerCase() === inputVal.toLowerCase());
       
       if (!match) return showToast("Data siswa tidak ditemukan di daftar kelas.", "danger");
       
-      studentSession.nis = match.nis;
-      studentSession.nama = match.nama;
+      studentSession.nis = String(match.nis).trim();
+      studentSession.nama = String(match.nama).trim();
       localStorage.setItem('prod_siswa_profile', JSON.stringify(studentSession));
       checkStudentProfile();
-      showToast(`Selamat datang, ${match.nama}!`, "success");
+      showToast(`Selamat datang, ${studentSession.nama}!`, "success");
     }
 
     function resetIdentitas() {
@@ -819,7 +1065,6 @@
       });
     }
 
-    // Buka kunci perangkat hanya dengan PIN Guru
     function showUnlockDeviceModal() {
       const inp = document.getElementById('inpPinUnlock');
       if (inp) inp.value = '';
@@ -896,7 +1141,6 @@
     }
 
     async function kirimAbsenKeServer(nis, nama, status, ket) {
-      // Validasi akhir anti-titip absen sebelum mengirim ke server
       const existingLock = getDeviceLockToday();
       if (existingLock) {
         showToast(`Ditolak! Perangkat sudah dikunci atas nama ${existingLock.nama}.`, "danger");
@@ -907,8 +1151,10 @@
       const btnScan = document.getElementById('btnMulaiScan');
       btnScan.innerText = "Menyimpan Absensi...";
       
+      const cleanNis = String(nis).trim();
+      const cleanNama = String(nama).trim();
       const waktuSekarang = new Date().toLocaleTimeString('id-ID');
-      const payload = { action: "submit_absen", nis, nama, status, ket, date: getTodayStr(), time: waktuSekarang };
+      const payload = { action: "submit_absen", nis: cleanNis, nama: cleanNama, status, ket, date: getTodayStr(), time: waktuSekarang };
       
       if (isApiConfigured()) {
         try {
@@ -921,21 +1167,17 @@
         } catch (e) {}
       }
 
-      APP_DATA.records.push({ id: Date.now(), date: getTodayStr(), time: waktuSekarang, nis, nama, status, ket });
+      APP_DATA.records.push({ id: Date.now(), date: getTodayStr(), time: waktuSekarang, nis: cleanNis, nama: cleanNama, status, ket });
       saveLocalData();
 
-      // Kunci perangkat ini untuk 1 hari penuh agar tidak bisa mengabsenkan teman
-      setDeviceLockToday(nis, nama, waktuSekarang);
+      setDeviceLockToday(cleanNis, cleanNama, waktuSekarang);
       studentSession.lastAbsenDate = getTodayStr();
       localStorage.setItem('prod_siswa_profile', JSON.stringify(studentSession));
       
-      updateStatistikHarianSiswa();
-      renderRiwayatAbsen();
-      renderLaporanDisiplin();
-      checkStudentProfile();
+      refreshAllUI();
       
-      document.getElementById('jokiNamaSiswa').innerText = nama;
-      document.getElementById('jokiNisSiswa').innerText = `NIS: ${nis}`;
+      document.getElementById('jokiNamaSiswa').innerText = cleanNama;
+      document.getElementById('jokiNisSiswa').innerText = `NIS: ${cleanNis}`;
       document.getElementById('jokiWaktuLengkap').innerText = `${getTodayStr()} | ${waktuSekarang} WIB`;
       
       const mdJoki = getBsModal('modalAntiJoki');
@@ -947,19 +1189,75 @@
 
     function showDashboardSiswa() {
       document.getElementById('dashboard-siswa-post-scan').classList.remove('hidden');
-      const myRecs = APP_DATA.records.filter(r => r.nis === studentSession.nis);
+      const cleanNis = String(studentSession.nis || '').trim();
+      const consolidated = getDailyConsolidatedRecords();
+
+      // Hitung akumulasi disiplin siswa yang 100% sinkron dengan Laporan Guru (1 status per hari)
+      const myRecs = consolidated.filter(r => r.nis === cleanNis);
       document.getElementById('ui-my-hadir').innerText = myRecs.filter(r => r.status === 'Hadir').length;
       document.getElementById('ui-my-izin').innerText = myRecs.filter(r => r.status === 'Izin').length;
       document.getElementById('ui-my-sakit').innerText = myRecs.filter(r => r.status === 'Sakit').length;
       document.getElementById('ui-my-alpa').innerText = myRecs.filter(r => r.status === 'Alpa').length;
 
-      const todayRecs = APP_DATA.records.filter(r => r.date === getTodayStr());
-      const hadirNames = [...new Set(todayRecs.filter(r => r.status === 'Hadir').map(r => r.nama))];
-      const allNames = APP_DATA.masterSiswa.map(s => s.nama);
-      const belumList = allNames.filter(n => !hadirNames.includes(n));
+      // Status spesifik siswa pada hari ini
+      const todayRecs = consolidated.filter(r => r.date === getTodayStr());
+      const myToday = todayRecs.find(r => r.nis === cleanNis);
+      const badgeEl = document.getElementById('ui-my-today-badge');
+      const detailEl = document.getElementById('ui-my-today-detail');
+      const bannerStatus = document.getElementById('ui-banner-status-hariini');
 
-      document.getElementById('count-kelas-hadir').innerText = hadirNames.length;
-      document.getElementById('ui-kelas-hadir').innerHTML = hadirNames.length ? hadirNames.join('<br>') : '-';
+      if (myToday) {
+        const badgeColor = myToday.status === 'Hadir' ? 'success' : (myToday.status === 'Sakit' ? 'info' : (myToday.status === 'Izin' ? 'warning' : 'danger'));
+        if (badgeEl) {
+          badgeEl.className = `badge bg-${badgeColor}`;
+          badgeEl.innerText = `Hari Ini: ${myToday.status}`;
+        }
+        if (detailEl) {
+          detailEl.innerText = `Tercatat pukul ${myToday.time || '-'} WIB (${myToday.ket})`;
+        }
+        if (bannerStatus) {
+          bannerStatus.className = `alert alert-${badgeColor} small mb-3 text-center border-0 shadow-sm`;
+          bannerStatus.innerHTML = `<i class="bi bi-check-circle-fill"></i> Status absensi Anda hari ini: <strong>${myToday.status}</strong>`;
+        }
+      } else {
+        if (badgeEl) {
+          badgeEl.className = 'badge bg-secondary';
+          badgeEl.innerText = 'Hari Ini: Belum Tercatat';
+        }
+        if (detailEl) detailEl.innerText = 'Belum ada catatan absen pada tanggal hari ini.';
+      }
+
+      // Status Kelas Hari Ini (berdasarkan NIS agar tidak bentrok nama sama)
+      const statusMapToday = new Map(todayRecs.map(r => [r.nis, r]));
+      const hadirList = [];
+      const kendalaList = [];
+      const belumList = [];
+
+      APP_DATA.masterSiswa.forEach(s => {
+        const sNis = String(s.nis).trim();
+        const sNama = String(s.nama).trim();
+        const rec = statusMapToday.get(sNis);
+        if (!rec) {
+          belumList.push(sNama);
+        } else if (rec.status === 'Hadir') {
+          hadirList.push(`${sNama} <span class="text-muted">(${rec.time || 'Hadir'})</span>`);
+        } else {
+          kendalaList.push(`${sNama} <strong>[${rec.status}]</strong>`);
+        }
+      });
+
+      document.getElementById('count-kelas-hadir').innerText = hadirList.length;
+      document.getElementById('ui-kelas-hadir').innerHTML = hadirList.length ? hadirList.join('<br>') : '-';
+
+      const boxKendala = document.getElementById('box-kelas-kendala');
+      if (kendalaList.length > 0) {
+        boxKendala.classList.remove('hidden');
+        document.getElementById('count-kelas-kendala').innerText = kendalaList.length;
+        document.getElementById('ui-kelas-kendala').innerHTML = kendalaList.join('<br>');
+      } else {
+        boxKendala.classList.add('hidden');
+      }
+
       document.getElementById('count-kelas-belum').innerText = belumList.length;
       document.getElementById('ui-kelas-belum').innerHTML = belumList.length ? belumList.join('<br>') : '-';
     }
@@ -1003,6 +1301,12 @@
       if (target) target.classList.add('active');
       if (navEl) navEl.classList.add('active');
       if (tabId === 'qr-guru') generateQrMaster();
+      if (tabId === 'riwayat-absen') renderRiwayatAbsen();
+      if (tabId === 'laporan-disiplin') {
+        populateSemesterMonthOptions();
+        renderLaporanHarian();
+        renderLaporanDisiplin();
+      }
       if (tabId === 'pengaturan') {
         const linkEl = document.getElementById('setLinkPortal');
         if (linkEl) linkEl.value = getPortalUrl();
@@ -1013,29 +1317,23 @@
       e.preventDefault();
       const nis = document.getElementById('inpMasterNIS').value.trim();
       const nama = document.getElementById('inpMasterNama').value.trim();
-      if (APP_DATA.masterSiswa.some(s => s.nis === nis)) {
+      if (APP_DATA.masterSiswa.some(s => String(s.nis).trim() === nis)) {
         return showToast("NIS tersebut sudah terdaftar!", "warning");
       }
       APP_DATA.masterSiswa.push({ nis, nama });
       saveLocalData();
       await syncMasterToServer();
-      renderMasterSiswa();
-      renderDatalistSiswa();
-      renderLaporanDisiplin();
-      updateStatistikHarianSiswa();
+      refreshAllUI();
       e.target.reset();
       showToast(`Siswa ${nama} ditambahkan.`, "success");
     }
 
     function hapusSiswaMaster(nis) {
       showConfirm("Hapus Siswa", "Yakin menghapus siswa ini dari daftar master?", async () => {
-        APP_DATA.masterSiswa = APP_DATA.masterSiswa.filter(s => s.nis !== nis);
+        APP_DATA.masterSiswa = APP_DATA.masterSiswa.filter(s => String(s.nis).trim() !== String(nis).trim());
         saveLocalData();
         await syncMasterToServer();
-        renderMasterSiswa();
-        renderDatalistSiswa();
-        renderLaporanDisiplin();
-        updateStatistikHarianSiswa();
+        refreshAllUI();
         showToast("Data siswa dihapus.", "info");
       });
     }
@@ -1065,11 +1363,13 @@
       }
 
       APP_DATA.masterSiswa.forEach(s => {
+        const cleanNis = String(s.nis).trim();
+        const cleanNama = String(s.nama).trim();
         list.innerHTML += `<li class="list-group-item d-flex justify-content-between align-items-center">
-          <div><strong>${s.nama}</strong><br><small class="text-muted">NIS: ${s.nis}</small></div>
-          <button type="button" class="btn btn-sm btn-outline-danger" onclick="hapusSiswaMaster('${s.nis}')"><i class="bi bi-trash"></i></button>
+          <div><strong>${cleanNama}</strong><br><small class="text-muted">NIS: ${cleanNis}</small></div>
+          <button type="button" class="btn btn-sm btn-outline-danger" onclick="hapusSiswaMaster('${cleanNis}')"><i class="bi bi-trash"></i></button>
         </li>`;
-        select.innerHTML += `<option value="${s.nis}">${s.nis} - ${s.nama}</option>`;
+        select.innerHTML += `<option value="${cleanNis}">${cleanNis} - ${cleanNama}</option>`;
       });
     }
 
@@ -1119,43 +1419,103 @@
 
     async function submitAbsenManual(e) {
       e.preventDefault();
-      const nis = document.getElementById('inpManualSiswa').value;
+      const nis = document.getElementById('inpManualSiswa').value.trim();
       const status = document.getElementById('inpManualStatus').value;
+      const tglInput = document.getElementById('inpManualTanggal').value || getTodayStr();
       if (!nis) return showToast("Pilih siswa terlebih dahulu!", "warning");
-      const s = APP_DATA.masterSiswa.find(x => x.nis === nis);
+      const s = APP_DATA.masterSiswa.find(x => String(x.nis).trim() === nis);
       if (!s) return;
       
+      const cleanNis = String(s.nis).trim();
+      const cleanNama = String(s.nama).trim();
       const waktu = new Date().toLocaleTimeString('id-ID');
-      const payload = { action: "submit_absen", nis: s.nis, nama: s.nama, status, ket: 'Input Manual Guru', date: getTodayStr(), time: waktu };
+      const payload = { action: "submit_absen", nis: cleanNis, nama: cleanNama, status, ket: 'Input Manual Guru', date: tglInput, time: waktu };
       if (isApiConfigured()) {
         try {
           await fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         } catch (e) {}
       }
 
-      APP_DATA.records.push({ id: Date.now(), date: getTodayStr(), time: waktu, nis: s.nis, nama: s.nama, status, ket: 'Input Manual' });
+      APP_DATA.records.push({ id: Date.now(), date: tglInput, time: waktu, nis: cleanNis, nama: cleanNama, status, ket: 'Input Manual' });
       saveLocalData();
+      refreshAllUI();
+      showToast(`Tersimpan: ${cleanNama} (${status} - ${tglInput})`, "success");
+      document.getElementById('inpManualSiswa').value = '';
+    }
+
+    // ================= 6. RIWAYAT DINAMIS & LAPORAN HARIAN / SEMESTER =================
+    function onChangeFilterRiwayatMode() {
+      const mode = document.getElementById('filterRiwayatMode').value;
+      const wrapDate = document.getElementById('wrapFilterRiwayatDate');
+      if (mode === 'date') {
+        wrapDate.classList.remove('hidden');
+      } else {
+        wrapDate.classList.add('hidden');
+      }
       renderRiwayatAbsen();
-      renderLaporanDisiplin();
-      updateStatistikHarianSiswa();
-      showToast(`Tersimpan: ${s.nama} (${status})`, "success");
-      e.target.reset();
     }
 
     function renderRiwayatAbsen() {
       const list = document.getElementById('list-riwayat');
       if (!list) return;
+
+      const mode = document.getElementById('filterRiwayatMode')?.value || 'today';
+      const targetDate = document.getElementById('filterRiwayatDate')?.value || getTodayStr();
+      const statusFilter = document.getElementById('filterRiwayatStatus')?.value || 'ALL';
+      const searchVal = (document.getElementById('filterRiwayatSearch')?.value || '').trim().toLowerCase();
+
+      let recs = getNormalizedRecords();
+
+      if (mode === 'today') {
+        recs = recs.filter(r => r.date === getTodayStr());
+      } else if (mode === 'date') {
+        recs = recs.filter(r => r.date === targetDate);
+      }
+
+      if (statusFilter !== 'ALL') {
+        recs = recs.filter(r => r.status === statusFilter);
+      }
+
+      if (searchVal) {
+        recs = recs.filter(r => r.nama.toLowerCase().includes(searchVal) || r.nis.toLowerCase().includes(searchVal));
+      }
+
+      // Update ringkasan bar riwayat
+      document.getElementById('rw-cnt-all').innerText = recs.length;
+      document.getElementById('rw-cnt-h').innerText = recs.filter(r => r.status === 'Hadir').length;
+      document.getElementById('rw-cnt-i').innerText = recs.filter(r => r.status === 'Izin').length;
+      document.getElementById('rw-cnt-s').innerText = recs.filter(r => r.status === 'Sakit').length;
+      document.getElementById('rw-cnt-a').innerText = recs.filter(r => r.status === 'Alpa').length;
+
       list.innerHTML = "";
-      if (APP_DATA.records.length === 0) {
-        list.innerHTML = `<li class="list-group-item text-center text-muted small py-3">Belum ada riwayat absensi.</li>`;
+      if (recs.length === 0) {
+        list.innerHTML = `<li class="list-group-item text-center text-muted small py-3">Tidak ada log riwayat pada filter ini.</li>`;
         return;
       }
-      [...APP_DATA.records].reverse().forEach(r => {
+
+      [...recs].reverse().forEach(r => {
         const b = r.status === 'Hadir' ? 'success' : (r.status === 'Sakit' ? 'info' : (r.status === 'Izin' ? 'warning' : 'danger'));
-        list.innerHTML += `<li class="list-group-item d-flex justify-content-between align-items-center">
-          <div><strong class="d-block">${r.nama}</strong><small class="text-muted">${r.date} | ${r.time || ''} (${r.ket || 'Scan'})</small></div>
-          <span class="badge bg-${b}">${r.status}</span>
+        list.innerHTML += `<li class="list-group-item d-flex justify-content-between align-items-center py-2">
+          <div class="me-2 overflow-hidden">
+            <strong class="d-block text-truncate">${r.nama}</strong>
+            <small class="text-muted">${r.date} • ${r.time || '-'} (${r.ket})</small>
+          </div>
+          <div class="d-flex align-items-center gap-2 flex-shrink-0">
+            <span class="badge bg-${b}">${r.status}</span>
+            <button type="button" class="btn btn-sm btn-link text-danger p-0" title="Hapus log ini" onclick="hapusSatuRiwayat('${r.id}')">
+              <i class="bi bi-x-circle"></i>
+            </button>
+          </div>
         </li>`;
+      });
+    }
+
+    function hapusSatuRiwayat(id) {
+      showConfirm("Hapus Catatan", "Hapus catatan absensi ini dari memori lokal?", () => {
+        APP_DATA.records = APP_DATA.records.filter((r, idx) => String(r.id || idx) !== String(id));
+        saveLocalData();
+        refreshAllUI();
+        showToast("Catatan dihapus.", "info");
       });
     }
 
@@ -1163,11 +1523,154 @@
       showConfirm("Reset Riwayat Lokal", "Hapus semua riwayat absen di memori lokal browser?", () => {
         APP_DATA.records = [];
         saveLocalData();
-        renderRiwayatAbsen();
-        renderLaporanDisiplin();
-        updateStatistikHarianSiswa();
+        refreshAllUI();
         showToast("Riwayat lokal telah dikosongkan.", "info");
       });
+    }
+
+    // Switch Mode Laporan (Harian vs Akumulasi Semester)
+    function switchLaporanMode(mode) {
+      const btnHarian = document.getElementById('btnModeLaporanHarian');
+      const btnSem = document.getElementById('btnModeLaporanSemester');
+      const panelHarian = document.getElementById('panel-laporan-harian');
+      const panelSem = document.getElementById('panel-laporan-semester');
+
+      if (mode === 'harian') {
+        btnHarian.className = 'btn btn-primary btn-sm fw-bold';
+        btnSem.className = 'btn btn-outline-primary btn-sm fw-bold';
+        panelHarian.classList.remove('hidden');
+        panelSem.classList.add('hidden');
+        renderLaporanHarian();
+      } else {
+        btnHarian.className = 'btn btn-outline-primary btn-sm fw-bold';
+        btnSem.className = 'btn btn-primary btn-sm fw-bold';
+        panelHarian.classList.add('hidden');
+        panelSem.classList.remove('hidden');
+        populateSemesterMonthOptions();
+        renderLaporanDisiplin();
+      }
+    }
+
+    function setTanggalLaporanHarian(offsetDays) {
+      const d = new Date();
+      d.setDate(d.getDate() + offsetDays);
+      const str = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const el = document.getElementById('lapHarianTanggal');
+      if (el) {
+        el.value = str;
+        renderLaporanHarian();
+      }
+    }
+
+    function renderLaporanHarian() {
+      const tbody = document.getElementById('tbody-laporan-harian');
+      if (!tbody) return;
+      const targetDate = document.getElementById('lapHarianTanggal')?.value || getTodayStr();
+      const consolidatedToday = getDailyConsolidatedRecords().filter(r => r.date === targetDate);
+      const statusMap = new Map(consolidatedToday.map(r => [r.nis, r]));
+
+      let cntH = 0, cntIS = 0, cntAB = 0;
+      tbody.innerHTML = '';
+
+      if (APP_DATA.masterSiswa.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" class="text-center small text-muted py-3">Belum ada data siswa</td></tr>`;
+        return;
+      }
+
+      APP_DATA.masterSiswa.forEach((s, idx) => {
+        const cleanNis = String(s.nis).trim();
+        const cleanNama = String(s.nama).trim();
+        const rec = statusMap.get(cleanNis);
+
+        let badgeHtml = '';
+        let infoHtml = '';
+
+        if (!rec) {
+          cntAB++;
+          badgeHtml = `<span class="badge bg-secondary-subtle text-secondary border">Belum</span>`;
+          infoHtml = `<small class="text-muted">-</small>`;
+        } else if (rec.status === 'Hadir') {
+          cntH++;
+          badgeHtml = `<span class="badge bg-success">Hadir</span>`;
+          infoHtml = `<small class="text-muted">${rec.time || '-'} • ${rec.ket}</small>`;
+        } else if (rec.status === 'Izin' || rec.status === 'Sakit') {
+          cntIS++;
+          const bg = rec.status === 'Izin' ? 'warning' : 'info';
+          badgeHtml = `<span class="badge bg-${bg}">${rec.status}</span>`;
+          infoHtml = `<small class="text-muted">${rec.ket}</small>`;
+        } else {
+          cntAB++;
+          badgeHtml = `<span class="badge bg-danger">Alpa</span>`;
+          infoHtml = `<small class="text-muted">${rec.ket}</small>`;
+        }
+
+        tbody.innerHTML += `<tr>
+          <td class="small fw-semibold">
+            <span class="text-muted me-1">${idx + 1}.</span>${cleanNama}
+          </td>
+          <td class="text-center">${badgeHtml}</td>
+          <td class="text-end">${infoHtml}</td>
+        </tr>`;
+      });
+
+      document.getElementById('lh-stat-total').innerText = APP_DATA.masterSiswa.length;
+      document.getElementById('lh-stat-hadir').innerText = cntH;
+      document.getElementById('lh-stat-is').innerText = cntIS;
+      document.getElementById('lh-stat-ab').innerText = cntAB;
+    }
+
+    function copyLaporanHarianWa() {
+      const targetDate = document.getElementById('lapHarianTanggal')?.value || getTodayStr();
+      const consolidatedToday = getDailyConsolidatedRecords().filter(r => r.date === targetDate);
+      const statusMap = new Map(consolidatedToday.map(r => [r.nis, r]));
+
+      let hadir = [], izin = [], sakit = [], alpa = [], belum = [];
+      APP_DATA.masterSiswa.forEach(s => {
+        const rec = statusMap.get(String(s.nis).trim());
+        const nama = String(s.nama).trim();
+        if (!rec) belum.push(nama);
+        else if (rec.status === 'Hadir') hadir.push(`${nama} (${rec.time || '-'})`);
+        else if (rec.status === 'Izin') izin.push(nama);
+        else if (rec.status === 'Sakit') sakit.push(nama);
+        else alpa.push(nama);
+      });
+
+      let text = `*LAPORAN ABSENSI HARIAN*\n` +
+                 `Sekolah: ${APP_DATA.settings.namaSekolah}\n` +
+                 `Kelas: ${APP_DATA.settings.tahunAjaran}\n` +
+                 `Tanggal: ${targetDate}\n` +
+                 `Total Siswa: ${APP_DATA.masterSiswa.length}\n\n` +
+                 `✅ *Hadir (${hadir.length}):*\n${hadir.length ? hadir.map((n, i) => `${i + 1}. ${n}`).join('\n') : '-'}\n\n` +
+                 `🟡 *Izin (${izin.length}):* ${izin.length ? izin.join(', ') : '-'}\n` +
+                 `🔵 *Sakit (${sakit.length}):* ${sakit.length ? sakit.join(', ') : '-'}\n` +
+                 `🔴 *Alpa (${alpa.length}):* ${alpa.length ? alpa.join(', ') : '-'}\n` +
+                 `⚪ *Belum Absen (${belum.length}):* ${belum.length ? belum.join(', ') : '-'}`;
+
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(() => showToast("Rekap harian disalin! Siap ditempel di WA.", "success"));
+      } else {
+        showToast("Browser tidak mendukung salin otomatis.", "warning");
+      }
+    }
+
+    function populateSemesterMonthOptions() {
+      const sel = document.getElementById('lapSemesterBulan');
+      if (!sel) return;
+      const currentVal = sel.value || 'ALL';
+      const months = new Set();
+      months.add(getTodayStr().slice(0, 7));
+      getDailyConsolidatedRecords().forEach(r => {
+        if (r.date && r.date.length >= 7) months.add(r.date.slice(0, 7));
+      });
+
+      const namaBulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+      sel.innerHTML = `<option value="ALL">Semua Semester (Keseluruhan)</option>`;
+      Array.from(months).sort().reverse().forEach(ym => {
+        const [y, m] = ym.split('-');
+        const label = `${namaBulan[parseInt(m, 10) - 1] || m} ${y}`;
+        sel.innerHTML += `<option value="${ym}">Bulan: ${label}</option>`;
+      });
+      if ([...sel.options].some(o => o.value === currentVal)) sel.value = currentVal;
     }
 
     function renderLaporanDisiplin() {
@@ -1175,43 +1678,166 @@
       if (!tbody) return;
       tbody.innerHTML = '';
       if (APP_DATA.masterSiswa.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center small text-muted py-3">Belum ada data siswa</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center small text-muted py-3">Belum ada data siswa</td></tr>`;
         return;
       }
-      
-      APP_DATA.masterSiswa.forEach(s => {
-        const recs = APP_DATA.records.filter(r => r.nis === s.nis);
+
+      const bulanFilter = document.getElementById('lapSemesterBulan')?.value || 'ALL';
+      const searchVal = (document.getElementById('lapSemesterSearch')?.value || '').trim().toLowerCase();
+
+      let consolidated = getDailyConsolidatedRecords();
+      if (bulanFilter !== 'ALL') {
+        consolidated = consolidated.filter(r => r.date.startsWith(bulanFilter));
+      }
+
+      // Hitung total hari efektif mengajar (jumlah tanggal unik tercatat)
+      const uniqueDates = new Set(consolidated.map(r => r.date));
+      const totalHariMengajar = uniqueDates.size;
+      document.getElementById('ls-total-hari').innerText = `${totalHariMengajar} Hari`;
+
+      let totalHadirAll = 0;
+      let totalPossibleAll = 0;
+
+      const filteredSiswa = APP_DATA.masterSiswa.filter(s => 
+        !searchVal || String(s.nama).toLowerCase().includes(searchVal) || String(s.nis).includes(searchVal)
+      );
+
+      filteredSiswa.forEach(s => {
+        const cleanNis = String(s.nis).trim();
+        const cleanNama = String(s.nama).trim();
+        const recs = consolidated.filter(r => r.nis === cleanNis);
+
         const h = recs.filter(r => r.status === 'Hadir').length;
         const i = recs.filter(r => r.status === 'Izin').length;
         const sk = recs.filter(r => r.status === 'Sakit').length;
         const a = recs.filter(r => r.status === 'Alpa').length;
-        tbody.innerHTML += `<tr>
-          <td class="small fw-bold text-truncate" style="max-width: 145px;">${s.nama}</td>
+
+        const pembagi = totalHariMengajar > 0 ? totalHariMengajar : (h + i + sk + a);
+        const persen = pembagi > 0 ? Math.round((h / pembagi) * 100) : 0;
+        const badgeCls = persen >= 85 ? 'text-success' : (persen >= 70 ? 'text-warning' : 'text-danger');
+
+        totalHadirAll += h;
+        totalPossibleAll += pembagi;
+
+        tbody.innerHTML += `<tr class="cursor-pointer" onclick="bukaDetailSiswaSemester('${cleanNis}')">
+          <td class="small fw-bold text-truncate text-primary" style="max-width: 135px;">
+            ${cleanNama} <i class="bi bi-chevron-right" style="font-size: 10px;"></i>
+          </td>
           <td class="text-center text-success fw-bold">${h}</td>
           <td class="text-center text-warning fw-bold">${i}</td>
           <td class="text-center text-info fw-bold">${sk}</td>
           <td class="text-center text-danger fw-bold">${a}</td>
+          <td class="text-center fw-bold ${badgeCls}">${persen}%</td>
         </tr>`;
       });
+
+      const avgPersen = totalPossibleAll > 0 ? Math.round((totalHadirAll / totalPossibleAll) * 100) : 0;
+      document.getElementById('ls-avg-persen').innerText = `${avgPersen}%`;
+    }
+
+    function bukaDetailSiswaSemester(nis) {
+      const cleanNis = String(nis).trim();
+      const siswa = APP_DATA.masterSiswa.find(s => String(s.nis).trim() === cleanNis);
+      if (!siswa) return;
+
+      const bulanFilter = document.getElementById('lapSemesterBulan')?.value || 'ALL';
+      let recs = getDailyConsolidatedRecords().filter(r => r.nis === cleanNis);
+      if (bulanFilter !== 'ALL') {
+        recs = recs.filter(r => r.date.startsWith(bulanFilter));
+      }
+
+      document.getElementById('detSiswaNama').innerText = String(siswa.nama).trim();
+      document.getElementById('detSiswaNis').innerText = `NIS: ${cleanNis} • Total Tercatat: ${recs.length} Hari`;
+      document.getElementById('detSiswaH').innerText = recs.filter(r => r.status === 'Hadir').length;
+      document.getElementById('detSiswaI').innerText = recs.filter(r => r.status === 'Izin').length;
+      document.getElementById('detSiswaS').innerText = recs.filter(r => r.status === 'Sakit').length;
+      document.getElementById('detSiswaA').innerText = recs.filter(r => r.status === 'Alpa').length;
+
+      const listEl = document.getElementById('detSiswaList');
+      listEl.innerHTML = '';
+      if (recs.length === 0) {
+        listEl.innerHTML = `<li class="list-group-item text-center text-muted">Belum ada catatan pada periode ini.</li>`;
+      } else {
+        [...recs].sort((a, b) => b.date.localeCompare(a.date)).forEach(r => {
+          const b = r.status === 'Hadir' ? 'success' : (r.status === 'Sakit' ? 'info' : (r.status === 'Izin' ? 'warning' : 'danger'));
+          listEl.innerHTML += `<li class="list-group-item d-flex justify-content-between align-items-center px-0">
+            <div><strong>${r.date}</strong> <span class="text-muted">(${r.time || '-'})</span><br><small class="text-muted">${r.ket}</small></div>
+            <span class="badge bg-${b}">${r.status}</span>
+          </li>`;
+        });
+      }
+
+      const md = getBsModal('modalDetailSiswaSemester');
+      if (md) md.show();
     }
 
     function copyLaporanDisiplinWa() {
-      let text = `*REKAP DISIPLIN KEHADIRAN KELAS*\nSekolah: ${APP_DATA.settings.namaSekolah}\nWali Kelas: ${APP_DATA.settings.namaWali}\nTanggal: ${getTodayStr()}\n\n`;
+      const bulanSel = document.getElementById('lapSemesterBulan');
+      const bulanFilter = bulanSel?.value || 'ALL';
+      const periodeLabel = bulanSel ? bulanSel.options[bulanSel.selectedIndex].text : 'Semua Semester';
+
+      let consolidated = getDailyConsolidatedRecords();
+      if (bulanFilter !== 'ALL') {
+        consolidated = consolidated.filter(r => r.date.startsWith(bulanFilter));
+      }
+      const totalHari = new Set(consolidated.map(r => r.date)).size;
+
+      let text = `*REKAP AKUMULASI DISIPLIN SISWA*\n` +
+                 `Sekolah: ${APP_DATA.settings.namaSekolah}\n` +
+                 `Kelas: ${APP_DATA.settings.tahunAjaran}\n` +
+                 `Wali Kelas: ${APP_DATA.settings.namaWali}\n` +
+                 `Periode: ${periodeLabel} (${totalHari} Hari Mengajar)\n\n`;
+
       APP_DATA.masterSiswa.forEach((s, idx) => {
-        const recs = APP_DATA.records.filter(r => r.nis === s.nis);
+        const cleanNis = String(s.nis).trim();
+        const recs = consolidated.filter(r => r.nis === cleanNis);
         const h = recs.filter(r => r.status === 'Hadir').length;
         const i = recs.filter(r => r.status === 'Izin').length;
         const sk = recs.filter(r => r.status === 'Sakit').length;
         const a = recs.filter(r => r.status === 'Alpa').length;
-        text += `${idx + 1}. ${s.nama}\n   (H:${h} | I:${i} | S:${sk} | A:${a})\n`;
+        const persen = totalHari > 0 ? Math.round((h / totalHari) * 100) : 0;
+        text += `${idx + 1}. ${String(s.nama).trim()}\n   (H:${h} | I:${i} | S:${sk} | A:${a} | ${persen}%)\n`;
       });
+
       if (navigator.clipboard) {
-        navigator.clipboard.writeText(text).then(() => showToast("Laporan disalin! Siap ditempel di WhatsApp.", "success"));
+        navigator.clipboard.writeText(text).then(() => showToast("Rekap semester disalin! Siap ditempel di WA.", "success"));
       } else {
         showToast("Browser tidak mendukung salin otomatis.", "warning");
       }
     }
 
+    function exportLaporanCsv() {
+      const bulanFilter = document.getElementById('lapSemesterBulan')?.value || 'ALL';
+      let consolidated = getDailyConsolidatedRecords();
+      if (bulanFilter !== 'ALL') {
+        consolidated = consolidated.filter(r => r.date.startsWith(bulanFilter));
+      }
+      const totalHari = new Set(consolidated.map(r => r.date)).size;
+
+      let csv = "No,NIS,Nama Siswa,Hadir,Izin,Sakit,Alpa,Total Hari Mengajar,Persentase Hadir\n";
+      APP_DATA.masterSiswa.forEach((s, idx) => {
+        const cleanNis = String(s.nis).trim();
+        const cleanNama = String(s.nama).trim().replace(/"/g, '""');
+        const recs = consolidated.filter(r => r.nis === cleanNis);
+        const h = recs.filter(r => r.status === 'Hadir').length;
+        const i = recs.filter(r => r.status === 'Izin').length;
+        const sk = recs.filter(r => r.status === 'Sakit').length;
+        const a = recs.filter(r => r.status === 'Alpa').length;
+        const persen = totalHari > 0 ? Math.round((h / totalHari) * 100) : 0;
+        csv += `${idx + 1},"${cleanNis}","${cleanNama}",${h},${i},${sk},${a},${totalHari},${persen}%\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `rekap_absensi_${bulanFilter}_${getTodayStr()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("File rekap CSV/Excel berhasil diunduh.", "success");
+    }
+
+    // ================= 7. PENGATURAN & BACKUP =================
     function applySettings() {
       document.getElementById('ui-pub-sekolah').innerText = APP_DATA.settings.namaSekolah;
       document.getElementById('ui-pub-wali').innerText = `Wali Kelas: ${APP_DATA.settings.namaWali} (${APP_DATA.settings.tahunAjaran})`;
@@ -1262,7 +1888,7 @@
       showToast("File backup JSON diunduh.", "success");
     }
 
-    // ================= 6. LUPA PIN & OTP EMAIL =================
+    // ================= 8. LUPA PIN & OTP EMAIL =================
     function showLupaPin() {
       const mdLog = getBsModal('modalLogin');
       if (mdLog) mdLog.hide();
