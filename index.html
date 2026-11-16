@@ -110,7 +110,26 @@
       <div class="card shadow-sm border-0 mb-3 hidden" id="card-scan">
         <div class="card-body text-center">
           <h5 class="fw-bold mb-1">Halo, <span id="ui-nama-siswa" class="text-primary-custom"></span>!</h5>
-          <p class="small text-muted mb-3">NIS: <span id="ui-nis-siswa"></span> <br><a href="javascript:void(0)" class="text-danger text-decoration-none fw-semibold" onclick="resetIdentitas()">Ganti Identitas</a></p>
+          <p class="small text-muted mb-2">
+            NIS: <span id="ui-nis-siswa"></span> <br>
+            <a href="javascript:void(0)" id="linkGantiIdentitas" class="text-danger text-decoration-none fw-semibold" onclick="resetIdentitas()">Ganti Identitas</a>
+          </p>
+
+          <!-- INFO PENGAMAN KUNCI PERANGKAT (1 HP = 1 SISWA/HARI) -->
+          <div id="deviceLockNotice" class="alert alert-danger small py-2 px-3 mb-3 text-start hidden">
+            <div class="d-flex align-items-start">
+              <i class="bi bi-shield-lock-fill fs-5 me-2 mt-1"></i>
+              <div>
+                <strong>Pengaman Anti-Titip Absen Aktif</strong>
+                <div id="deviceLockDetail" class="mt-1" style="font-size: 0.76rem;">
+                  HP ini sudah digunakan untuk absensi hari ini. Tidak dapat dipakai untuk mengabsenkan siswa lain.
+                </div>
+                <a href="javascript:void(0)" class="d-inline-block mt-1 text-decoration-underline fw-bold text-danger" style="font-size: 0.72rem;" onclick="showUnlockDeviceModal()">
+                  Buka Kunci Perangkat (Khusus Guru)
+                </a>
+              </div>
+            </div>
+          </div>
           
           <!-- INFO STATUS HARIAN DINAMIS -->
           <div class="row g-2 mb-3">
@@ -181,7 +200,7 @@
       <!-- FOOTER KAMUFLASE LOGIN GURU -->
       <div class="text-center mt-4 mb-5">
         <div class="kamuflase-btn text-muted" role="button" tabindex="0" onclick="showLoginAdmin()">
-          Powered by Ari GPM | v2.4.1.MASTER 🔒
+          Powered by Ari GPM | v2.4.2.MASTER 🔒
         </div>
       </div>
     </div>
@@ -415,6 +434,22 @@
     </div>
   </div>
 
+  <!-- Modal Buka Kunci Perangkat (Khusus Guru jika 1 HP dipakai bergantian atas izin guru) -->
+  <div class="modal fade" id="modalUnlockDevice" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-body p-4 text-center">
+          <i class="bi bi-key-fill display-5 text-danger mb-2"></i>
+          <h6 class="fw-bold mb-1">Buka Kunci Perangkat</h6>
+          <p class="small text-muted mb-3">Masukkan PIN Guru untuk mengizinkan HP ini dipakai absen siswa lain hari ini.</p>
+          <input type="password" class="form-control text-center mb-3 fs-5" id="inpPinUnlock" placeholder="PIN Guru" maxlength="6" inputmode="numeric" onkeyup="if(event.key==='Enter') prosesUnlockDevice()">
+          <button type="button" class="btn btn-danger w-100 rounded-pill mb-2 fw-bold" onclick="prosesUnlockDevice()">Buka Kunci Sekarang</button>
+          <button type="button" class="btn btn-light btn-sm w-100 rounded-pill" data-bs-dismiss="modal">Batal</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal Lupa PIN (Validasi Email Pengaturan) -->
   <div class="modal fade" id="modalLupaPin" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
@@ -442,7 +477,7 @@
     </div>
   </div>
 
-  <!-- Modal Panduan Instal Manual (Fallback jika prompt browser ditahan) -->
+  <!-- Modal Panduan Instal Manual -->
   <div class="modal fade" id="modalManualInstall" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content border-0 shadow">
@@ -463,7 +498,7 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
   <script>
-    // ================= 1. REGISTRASI SERVICE WORKER & PWA PROMPT (LEVEL ATAS) =================
+    // ================= 1. REGISTRASI SERVICE WORKER & PWA PROMPT =================
     let deferredPrompt = null;
 
     if ('serviceWorker' in navigator) {
@@ -504,6 +539,30 @@
 
     const getPortalUrl = () => window.location.href.split('?')[0].split('#')[0];
 
+    // Helper Pengaman Kunci Perangkat (1 HP = 1 Siswa per Hari)
+    function getDeviceLockToday() {
+      try {
+        const lock = JSON.parse(localStorage.getItem('prod_device_absen_lock') || 'null');
+        if (lock && lock.date === getTodayStr() && lock.nis) {
+          return lock;
+        }
+        // Otomatis bersihkan jika sudah ganti hari
+        if (lock && lock.date !== getTodayStr()) {
+          localStorage.removeItem('prod_device_absen_lock');
+        }
+      } catch (e) {}
+      return null;
+    }
+
+    function setDeviceLockToday(nis, nama, time) {
+      localStorage.setItem('prod_device_absen_lock', JSON.stringify({
+        date: getTodayStr(),
+        nis: nis,
+        nama: nama,
+        time: time
+      }));
+    }
+
     const DEFAULT_DATA = {
       settings: { 
         namaSekolah: "SD Negeri 1 Karanganyar", 
@@ -542,7 +601,7 @@
       if (!toastEl || !bodyEl || typeof bootstrap === 'undefined') return;
       toastEl.className = `toast align-items-center text-white bg-${type} border-0 shadow-lg`;
       bodyEl.innerText = msg;
-      bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 3200 }).show();
+      bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 3400 }).show();
     }
 
     function showConfirm(title, msg, onConfirm) {
@@ -559,7 +618,7 @@
       localStorage.setItem('prod_admin_data', JSON.stringify(APP_DATA));
     }
 
-    // ================= 3. INISIALISASI HALAMAN (INSTANT OFFLINE-FIRST) =================
+    // ================= 3. INISIALISASI HALAMAN =================
     document.addEventListener('DOMContentLoaded', () => {
       const btnConfirmYes = document.getElementById('btnConfirmYes');
       if (btnConfirmYes) {
@@ -645,10 +704,40 @@
       }
     }
 
-    // ================= 4. LOGIKA SISWA =================
+    // ================= 4. LOGIKA SISWA & PENGAMAN 1 HP = 1 SISWA =================
     function checkStudentProfile() {
       document.getElementById('ui-jam-absen').innerText = `${APP_DATA.settings.jamMulai} WIB - ${APP_DATA.settings.jamSelesai} WIB`;
       updateStatistikHarianSiswa();
+
+      const deviceLock = getDeviceLockToday();
+      const lockNotice = document.getElementById('deviceLockNotice');
+      const lockDetail = document.getElementById('deviceLockDetail');
+      const linkGanti = document.getElementById('linkGantiIdentitas');
+
+      // Jika perangkat sudah dipakai absen hari ini, paksa kunci profil ke siswa yang sudah absen
+      if (deviceLock) {
+        studentSession.nis = deviceLock.nis;
+        studentSession.nama = deviceLock.nama;
+        studentSession.lastAbsenDate = deviceLock.date;
+        localStorage.setItem('prod_siswa_profile', JSON.stringify(studentSession));
+
+        if (lockNotice) lockNotice.classList.remove('hidden');
+        if (lockDetail) {
+          lockDetail.innerText = `HP ini sudah digunakan absen hari ini oleh ${deviceLock.nama} (NIS: ${deviceLock.nis}) pukul ${deviceLock.time} WIB. Tidak dapat dipakai mengabsenkan teman.`;
+        }
+        if (linkGanti) {
+          linkGanti.classList.remove('text-danger');
+          linkGanti.classList.add('text-secondary');
+          linkGanti.innerHTML = `<i class="bi bi-lock-fill"></i> Identitas Terkunci Hari Ini`;
+        }
+      } else {
+        if (lockNotice) lockNotice.classList.add('hidden');
+        if (linkGanti) {
+          linkGanti.classList.remove('text-secondary');
+          linkGanti.classList.add('text-danger');
+          linkGanti.innerHTML = `Ganti Identitas`;
+        }
+      }
 
       if (studentSession.nis && studentSession.nama) {
         document.getElementById('card-identitas').classList.add('hidden');
@@ -656,7 +745,7 @@
         document.getElementById('ui-nama-siswa').innerText = studentSession.nama;
         document.getElementById('ui-nis-siswa').innerText = studentSession.nis;
 
-        const alreadyToday = studentSession.lastAbsenDate === getTodayStr() || 
+        const alreadyToday = Boolean(deviceLock) || studentSession.lastAbsenDate === getTodayStr() || 
           APP_DATA.records.some(r => r.nis === studentSession.nis && r.date === getTodayStr());
 
         if (alreadyToday) {
@@ -692,6 +781,13 @@
     }
 
     function simpanIdentitasSiswa() {
+      const deviceLock = getDeviceLockToday();
+      if (deviceLock) {
+        showToast(`Ditolak! HP ini sudah dipakai absen hari ini oleh ${deviceLock.nama}.`, "danger");
+        checkStudentProfile();
+        return;
+      }
+
       const inputVal = document.getElementById('inpCariSiswa').value.trim();
       if (!inputVal) return showToast("Ketik atau pilih nama Anda terlebih dahulu!", "warning");
       const targetNis = inputVal.split(' - ')[0].trim();
@@ -708,6 +804,11 @@
     }
 
     function resetIdentitas() {
+      const deviceLock = getDeviceLockToday();
+      if (deviceLock) {
+        return showToast(`Tidak bisa ganti identitas! HP ini sudah dipakai absen hari ini oleh ${deviceLock.nama}.`, "danger");
+      }
+
       showConfirm("Ganti Identitas", "Hapus profil siswa ini dari perangkat Anda?", () => {
         hentikanScan();
         studentSession = { nis: '', nama: '', lastAbsenDate: '' };
@@ -718,6 +819,30 @@
       });
     }
 
+    // Buka kunci perangkat hanya dengan PIN Guru
+    function showUnlockDeviceModal() {
+      const inp = document.getElementById('inpPinUnlock');
+      if (inp) inp.value = '';
+      const md = getBsModal('modalUnlockDevice');
+      if (md) md.show();
+    }
+
+    function prosesUnlockDevice() {
+      const pin = document.getElementById('inpPinUnlock').value.trim();
+      if (pin === adminPin) {
+        localStorage.removeItem('prod_device_absen_lock');
+        studentSession = { nis: '', nama: '', lastAbsenDate: '' };
+        localStorage.setItem('prod_siswa_profile', JSON.stringify(studentSession));
+        document.getElementById('inpCariSiswa').value = '';
+        const md = getBsModal('modalUnlockDevice');
+        if (md) md.hide();
+        checkStudentProfile();
+        showToast("Kunci perangkat dibuka oleh Guru. Silakan pilih siswa berikutnya.", "success");
+      } else {
+        showToast("PIN Guru salah! Perangkat tetap terkunci.", "danger");
+      }
+    }
+
     function isTimeValid() {
       const now = new Date();
       const currentJam = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
@@ -725,6 +850,12 @@
     }
 
     function mulaiScanSiswa() {
+      const deviceLock = getDeviceLockToday();
+      if (deviceLock) {
+        checkStudentProfile();
+        return showToast(`Ditolak! HP ini sudah dipakai absen hari ini oleh ${deviceLock.nama}.`, "danger");
+      }
+
       if (!isTimeValid()) {
         return showToast(`Ditolak! Jam absen aktif: ${APP_DATA.settings.jamMulai} - ${APP_DATA.settings.jamSelesai} WIB.`, "danger");
       }
@@ -759,10 +890,20 @@
         html5QrcodeScanner = null;
       }
       document.getElementById('reader-container').classList.add('hidden');
-      document.getElementById('btnMulaiScan').classList.remove('hidden');
+      if (!getDeviceLockToday()) {
+        document.getElementById('btnMulaiScan').classList.remove('hidden');
+      }
     }
 
     async function kirimAbsenKeServer(nis, nama, status, ket) {
+      // Validasi akhir anti-titip absen sebelum mengirim ke server
+      const existingLock = getDeviceLockToday();
+      if (existingLock) {
+        showToast(`Ditolak! Perangkat sudah dikunci atas nama ${existingLock.nama}.`, "danger");
+        checkStudentProfile();
+        return;
+      }
+
       const btnScan = document.getElementById('btnMulaiScan');
       btnScan.innerText = "Menyimpan Absensi...";
       
@@ -782,13 +923,16 @@
 
       APP_DATA.records.push({ id: Date.now(), date: getTodayStr(), time: waktuSekarang, nis, nama, status, ket });
       saveLocalData();
+
+      // Kunci perangkat ini untuk 1 hari penuh agar tidak bisa mengabsenkan teman
+      setDeviceLockToday(nis, nama, waktuSekarang);
+      studentSession.lastAbsenDate = getTodayStr();
+      localStorage.setItem('prod_siswa_profile', JSON.stringify(studentSession));
       
       updateStatistikHarianSiswa();
       renderRiwayatAbsen();
       renderLaporanDisiplin();
-
-      studentSession.lastAbsenDate = getTodayStr();
-      localStorage.setItem('prod_siswa_profile', JSON.stringify(studentSession));
+      checkStudentProfile();
       
       document.getElementById('jokiNamaSiswa').innerText = nama;
       document.getElementById('jokiNisSiswa').innerText = `NIS: ${nis}`;
