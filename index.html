@@ -181,7 +181,7 @@
       <!-- FOOTER KAMUFLASE LOGIN GURU -->
       <div class="text-center mt-4 mb-5">
         <div class="kamuflase-btn text-muted" role="button" tabindex="0" onclick="showLoginAdmin()">
-          Powered by Ari GPM | v2.4.0.MASTER 🔒
+          Powered by Ari GPM | v2.4.1.MASTER 🔒
         </div>
       </div>
     </div>
@@ -296,6 +296,25 @@
       <div id="tab-pengaturan" class="admin-section">
         <h5 class="fw-bold mb-3">Pengaturan Dasbor</h5>
         
+        <!-- KARTU BAGIKAN LINK WA KE SISWA -->
+        <div class="card shadow-sm border-0 mb-3">
+          <div class="card-body">
+            <label class="form-label small fw-bold text-success border-bottom border-success w-100 pb-1 mb-2">
+              <i class="bi bi-share-fill"></i> Bagikan Portal ke Siswa
+            </label>
+            <p class="small text-muted mb-2">Kirimkan tautan aplikasi absensi ini ke grup WhatsApp kelas agar siswa dapat langsung mengakses dan menginstal aplikasi.</p>
+            <div class="input-group input-group-sm mb-2">
+              <input type="text" class="form-control bg-light" id="setLinkPortal" readonly>
+              <button type="button" class="btn btn-outline-secondary" onclick="salinLinkPortal()" title="Salin Link">
+                <i class="bi bi-clipboard"></i> Salin
+              </button>
+            </div>
+            <button type="button" class="btn btn-success btn-sm w-100 fw-bold rounded-pill shadow-sm" onclick="bagikanLinkWa()">
+              <i class="bi bi-whatsapp"></i> Share Link Absen ke Siswa (WA)
+            </button>
+          </div>
+        </div>
+
         <div class="card shadow-sm border-0 mb-3">
           <div class="card-body">
             <label class="form-label small fw-bold text-primary border-bottom border-primary w-100 pb-1 mb-2"><i class="bi bi-building"></i> Identitas Sekolah & Wali Kelas</label>
@@ -483,6 +502,8 @@
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     };
 
+    const getPortalUrl = () => window.location.href.split('?')[0].split('#')[0];
+
     const DEFAULT_DATA = {
       settings: { 
         namaSekolah: "SD Negeri 1 Karanganyar", 
@@ -509,7 +530,6 @@
     let isProcessingScan = false;
     let confirmCallback = null;
 
-    // Helper aman untuk memanggil Bootstrap Modal tanpa crash
     function getBsModal(id) {
       const el = document.getElementById(id);
       if (!el || typeof bootstrap === 'undefined') return null;
@@ -541,7 +561,6 @@
 
     // ================= 3. INISIALISASI HALAMAN (INSTANT OFFLINE-FIRST) =================
     document.addEventListener('DOMContentLoaded', () => {
-      // Tombol Konfirmasi Modal
       const btnConfirmYes = document.getElementById('btnConfirmYes');
       if (btnConfirmYes) {
         btnConfirmYes.addEventListener('click', () => {
@@ -551,7 +570,6 @@
         });
       }
 
-      // Tombol Banner Instalasi PWA
       const btnInstall = document.getElementById('btnInstallApp');
       const btnCloseBanner = document.getElementById('btnCloseBanner');
       const banner = document.getElementById('installBanner');
@@ -566,7 +584,6 @@
             }
             deferredPrompt = null;
           } else {
-            // Jika browser menahan prompt otomatis, tampilkan panduan instalasi manual
             const mdGuide = getBsModal('modalManualInstall');
             if (mdGuide) mdGuide.show();
           }
@@ -580,7 +597,6 @@
         });
       }
 
-      // Tampilkan banner panduan instalasi jika belum mode standalone & belum ditutup user
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
       if (!isStandalone && !sessionStorage.getItem('hide_install_banner')) {
         setTimeout(() => {
@@ -590,10 +606,8 @@
         }, 1500);
       }
 
-      // Render langsung dari memori lokal agar UI tidak pernah macet/blank
       refreshAllUI();
 
-      // Sinkronisasi latar belakang ke Google Sheets jika API_URL sudah diisi
       if (isApiConfigured()) {
         tarikDataServer(false);
       }
@@ -642,7 +656,6 @@
         document.getElementById('ui-nama-siswa').innerText = studentSession.nama;
         document.getElementById('ui-nis-siswa').innerText = studentSession.nis;
 
-        // Cek apakah sudah absen hari ini (baik dari session maupun record)
         const alreadyToday = studentSession.lastAbsenDate === getTodayStr() || 
           APP_DATA.records.some(r => r.nis === studentSession.nis && r.date === getTodayStr());
 
@@ -846,6 +859,10 @@
       if (target) target.classList.add('active');
       if (navEl) navEl.classList.add('active');
       if (tabId === 'qr-guru') generateQrMaster();
+      if (tabId === 'pengaturan') {
+        const linkEl = document.getElementById('setLinkPortal');
+        if (linkEl) linkEl.value = getPortalUrl();
+      }
     }
 
     async function simpanSiswaMaster(e) {
@@ -931,8 +948,28 @@
       }
     }
     
+    function salinLinkPortal() {
+      const url = getPortalUrl();
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).then(() => showToast("Link portal absensi berhasil disalin!", "success"));
+      } else {
+        const input = document.getElementById('setLinkPortal');
+        if (input) {
+          input.select();
+          document.execCommand('copy');
+          showToast("Link portal absensi berhasil disalin!", "success");
+        }
+      }
+    }
+
     function bagikanLinkWa() {
-      const msg = `Halo! Jadwal Absen: ${APP_DATA.settings.jamMulai} - ${APP_DATA.settings.jamSelesai} WIB.\n\nAkses Portal Absen Siswa di sini:\n${window.location.href.split('?')[0]}`;
+      const url = getPortalUrl();
+      const msg = `*PORTAL ABSENSI DIGITAL SISWA*\n` +
+                  `Sekolah: ${APP_DATA.settings.namaSekolah}\n` +
+                  `Kelas: ${APP_DATA.settings.tahunAjaran}\n` +
+                  `Wali Kelas: ${APP_DATA.settings.namaWali}\n` +
+                  `Jam Absen: ${APP_DATA.settings.jamMulai} - ${APP_DATA.settings.jamSelesai} WIB\n\n` +
+                  `Silakan buka link di bawah ini untuk melakukan absensi:\n${url}`;
       window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
@@ -1035,6 +1072,9 @@
       document.getElementById('ui-pub-sekolah').innerText = APP_DATA.settings.namaSekolah;
       document.getElementById('ui-pub-wali').innerText = `Wali Kelas: ${APP_DATA.settings.namaWali} (${APP_DATA.settings.tahunAjaran})`;
       
+      const linkEl = document.getElementById('setLinkPortal');
+      if (linkEl) linkEl.value = getPortalUrl();
+
       document.getElementById('setNamaSekolah').value = APP_DATA.settings.namaSekolah;
       document.getElementById('setNamaWali').value = APP_DATA.settings.namaWali;
       document.getElementById('setTahunAjaran').value = APP_DATA.settings.tahunAjaran;
